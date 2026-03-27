@@ -47,12 +47,20 @@ MIN_ROWS_FOR_RF     = 30   # need 30+ days before Random Forest is useful
 
 class FeaturePipeline:
     def __init__(self) -> None:
-        self._client = get_client()
+        self.__client = None  # lazy-initialised on first Supabase call
+
+    # ── lazy Supabase client ──────────────────────────────────────────────────
+
+    def _get_client(self):
+        """Return (and lazily initialise) the Supabase client."""
+        if self.__client is None:
+            self.__client = get_client()
+        return self.__client
 
     # ── fetch raw data ────────────────────────────────────────────────────────
 
     def fetch_daily_summary(self) -> pd.DataFrame:
-        rows = (self._client.table("daily_summary")
+        rows = (self._get_client().table("daily_summary")
                 .select("*").order("summary_date").execute().data or [])
         if not rows:
             return pd.DataFrame()
@@ -66,7 +74,7 @@ class FeaturePipeline:
     def fetch_expiry_counts(self) -> dict:
         """Return {blood_group: count of units expiring within 7 days}."""
         cutoff = (date.today() + timedelta(days=7)).isoformat()
-        rows = (self._client.table("blood_inventory")
+        rows = (self._get_client().table("blood_inventory")
                 .select("blood_group")
                 .eq("status", "available")
                 .lte("expiry_date", cutoff)
@@ -79,7 +87,7 @@ class FeaturePipeline:
 
     def fetch_stock_levels(self) -> dict:
         """Return {blood_group: current available count}."""
-        rows = (self._client.table("blood_inventory")
+        rows = (self._get_client().table("blood_inventory")
                 .select("blood_group")
                 .eq("status", "available")
                 .execute().data or [])
@@ -141,6 +149,8 @@ class FeaturePipeline:
 
         # ── one-hot encode blood group ─────────────────────────────────────────
         ohe = pd.get_dummies(long["blood_group"], prefix="bg").astype(int)
+        # normalise column names: "bg_O Pos" → "bg_O_Pos" so they match get_feature_cols()
+        ohe.columns = [c.replace(" ", "_") for c in ohe.columns]
         # ensure all 8 columns exist
         for bg in BLOOD_GROUPS_SORTED:
             col = f"bg_{bg.replace(' ', '_')}"
@@ -257,6 +267,11 @@ class FeaturePipeline:
         # Parse collection_date; drop rows where parsing fails
         df["collection_date"] = pd.to_datetime(df["collection_date"], errors="coerce")
         df = df.dropna(subset=["collection_date"])
+        if df.empty:
+            return pd.DataFrame()
+
+        # Filter to valid records only (exclude flagged/discarded units)
+        df = df[df["status"].isin(["available", "issued"])]
         if df.empty:
             return pd.DataFrame()
 
