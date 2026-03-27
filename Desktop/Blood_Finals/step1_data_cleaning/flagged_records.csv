@@ -1,0 +1,2 @@
+unit_id,sno,unit_no,segment_no,blood_group,component,quantity_ml,collection_date,collection_time,expiry_date,status,hiv,hbsag,hcv,malaria,vdrl,notes,flag
+763-WB_PRC--35,763,572267,-35,,WB/PRC,,2026-02-13,13:33,2026-03-27,flagged,Neg,Neg,Neg,Neg,Neg,Low volume (as noted),INCOMPLETE

@@ -1,0 +1,53 @@
+Loaded 77 raw rows from source file.
+Columns: ['S.No', 'Unit No', 'Segment No', 'Collection Date', 'Collection Time', 'Component', 'Expiry Date', 'Quantity (ml)', 'Blood Group', 'HIV 1&2', 'HBsAg', 'HCV', 'Malaria', 'VDRL', 'Notes']
+
+  Row 34 | S.No 763 | quantity_ml missing
+  Row 34 | S.No 763 | blood_group MISSING → flagging row as INCOMPLETE
+  Row 50 | S.No 771 | collection_time missing/unknown (was '') → 'Unknown'
+  Row 51 | S.No 771 | collection_time missing/unknown (was '') → 'Unknown'
+  Row 52 | S.No 771 | collection_time missing/unknown (was '') → 'Unknown'
+  Row 65 | S.No 778 | collection_time missing/unknown (was '') → 'Unknown'
+  Row 66 | S.No 778 | collection_time missing/unknown (was '') → 'Unknown'
+  Row 67 | S.No 779 | segment_no missing → 'N/A'
+  Row 68 | S.No 779 | segment_no missing → 'N/A'
+  Row 68 | S.No 779 | quantity_ml missing
+  Row 68 | S.No 779 | SDP FFP qty missing → filled 0
+
+============================================================
+VERIFICATION SUMMARY
+============================================================
+  Total raw rows       : 77
+  Valid records        : 76
+  Flagged (incomplete) : 1
+
+  Blood group distribution:
+    A Neg   : 2
+    A Pos   : 24
+    AB Neg  : 0
+    AB Pos  : 4
+    B Neg   : 2
+    B Pos   : 16
+    O Neg   : 3
+    O Pos   : 25
+
+  Component distribution:
+    FFP     : 36
+    PLT     : 4
+    WB/PRC  : 36
+
+  Time normalization check (sample):
+    S.No 734 | WB/PRC | time=23:45
+    S.No 734 | FFP | time=23:45
+    S.No 735 | WB/PRC | time=11:50
+    S.No 735 | FFP | time=11:50
+    S.No 736 | WB/PRC | time=23:52
+
+  Expiry date sample:
+    unit_id=734-WB_PRC--436.0 | expiry=2026-03-27
+    unit_id=734-FFP--436.0 | expiry=2027-02-14
+    unit_id=735-WB_PRC--26.0 | expiry=2026-03-27
+    unit_id=735-FFP--26.0 | expiry=2027-02-14
+    unit_id=736-WB_PRC--37.0 | expiry=2026-03-27
+
+  Flagged records:
+    unit_id=763-WB_PRC--35 | blood_group='' | qty='' | notes='Low volume (as noted)'
