@@ -23,6 +23,7 @@ from datetime import date
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from ml.scripts.preprocess import FeaturePipeline, INDIAN_BLOOD_DIST
+from ml.scripts.train      import SESForecaster, XGBForecaster, AnomalyDetector  # noqa: F401
 from db.supabase_client    import get_client
 from shared.cleaning_utils import VALID_BLOOD_GROUPS
 
