@@ -1,6 +1,77 @@
+# -----------------------------
+# Environment and secrets
+# -----------------------------
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+
+# -----------------------------
+# OS / editor junk
+# -----------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# -----------------------------
+# Logs and runtime output
+# -----------------------------
+logs/
+*.log
+*.out
+*.err
+*.pid
+/tmp/
+tmp/
+
+# -----------------------------
+# Python artifacts
+# -----------------------------
 __pycache__/
 *.pyc
 *.pyo
-.DS_Store
-/tmp/
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+dist/
+build/
+*.egg-info/
+.eggs/
+.tox/
+.nox/
+.venv/
+venv/
+env/
+
+# -----------------------------
+# Node/frontend artifacts
+# -----------------------------
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# -----------------------------
+# Databases, dumps, backups
+# -----------------------------
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+*.dump
+*.dmp
+*.bak
+*.backup
+*.old
+*.tmp
