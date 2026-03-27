@@ -179,8 +179,14 @@ class AnomalyDetector:
 class ModelTrainer:
     def __init__(self, csv_path: str | None = None) -> None:
         self.pipe = FeaturePipeline()
-        self.client = get_client()
+        self._client = None
         self.csv_path = csv_path
+
+    def _get_client(self):
+        """Lazily initialize and return the Supabase client."""
+        if self._client is None:
+            self._client = get_client()
+        return self._client
 
     def train_all(self) -> dict:
         """Train all models for all components. Returns training report."""
@@ -223,21 +229,14 @@ class ModelTrainer:
         # ── Isolation Forest (14+ days) ───────────────────────────────────────
         if n_days >= 14:
             anomaly = AnomalyDetector()
-            df_a = df.rename(
-                columns={
-                    "units_demanded": "units_demanded",
-                    "rolling_avg_7d": "rolling_avg_7d",
-                    "rolling_std_7d": "rolling_std_7d",
-                }
-            )
-            anomaly.fit(df_a)
+            anomaly.fit(df)
             anomaly.save(
                 MODELS_DIR
                 / f"isolation_forest_{component.replace('/', '_')}.joblib"
             )
 
             # Score all historical rows
-            scores = anomaly.predict(df_a)
+            scores = anomaly.predict(df)
             df["anomaly_flag"] = scores
             anomalies = df[df["anomaly_flag"] == -1]
             print(f"  Isolation Forest trained. Anomalies found: {len(anomalies)}")
@@ -256,6 +255,7 @@ class ModelTrainer:
             }
 
         # ── XGBoost (30+ days) ────────────────────────────────────────────────
+        xgb = None
         if n_days >= MIN_ROWS_FOR_RF:
             xgb = XGBForecaster()
             metrics = xgb.fit(df, feature_cols)
@@ -331,7 +331,7 @@ class ModelTrainer:
             return 0
 
         try:
-            self.client.table(PRED_TABLE).upsert(
+            self._get_client().table(PRED_TABLE).upsert(
                 records, on_conflict="prediction_date,blood_group,component"
             ).execute()
             return len(records)
