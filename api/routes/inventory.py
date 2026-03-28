@@ -3,7 +3,6 @@ api/routes/inventory.py
 Flask Blueprint: blood inventory endpoints
 
 POST /api/inventory  — add a single unit via JSON
-POST /api/upload     — upload a Numbers/Excel/CSV file, clean, upsert all records
 GET  /api/inventory  — list units (filters: blood_group, component, status)
 """
 
@@ -23,9 +22,6 @@ from db.supabase_client import get_client
 inventory_bp = Blueprint("inventory", __name__, url_prefix="/api")
 TABLE = "blood_inventory"
 
-ALLOWED_EXTENSIONS = {".numbers", ".xlsx", ".xls", ".csv"}
-
-
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _upsert(records: list[dict]) -> tuple[int, int]:
@@ -39,28 +35,6 @@ def _upsert(records: list[dict]) -> tuple[int, int]:
         except Exception:
             errors += len(records[i:i+batch_size])
     return inserted, errors
-
-
-def _read_numbers_or_xlsx(path: str):
-    from numbers_parser import Document
-    doc   = Document(path)
-    table = doc.sheets[0].tables[0]
-    rows  = list(table.iter_rows())
-    headers  = [c.value for c in rows[0]]
-    raw_rows = [
-        [c.value if c.value is not None else "" for c in row]
-        for row in rows[1:]
-    ]
-    return headers, raw_rows
-
-
-def _read_csv(path: str):
-    import csv
-    with open(path, newline="") as f:
-        reader = csv.DictReader(f)
-        headers  = list(reader.fieldnames or [])
-        raw_rows = [list(row.values()) for row in reader]
-    return headers, raw_rows
 
 
 # ── routes ────────────────────────────────────────────────────────────────────
