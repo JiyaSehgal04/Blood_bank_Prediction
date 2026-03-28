@@ -101,19 +101,19 @@ export default function Upload() {
   return (
     <div className="space-y-8">
       <div>
-        <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.3em] mb-1">
+        <div className="text-[10px] font-mono text-[#00d4ff] uppercase tracking-[0.3em] mb-1">
           Data Ingestion
         </div>
-        <h1 className="font-headline text-3xl font-extrabold text-[#1b1c15] tracking-tight">
-          Upload & Settings
+        <h1 className="font-headline text-3xl font-extrabold text-[#e2e8f8] tracking-tight">
+          Upload &amp; Settings
         </h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* File upload */}
-        <div className="bg-white border border-[#becabc]/30 rounded p-6">
-          <h3 className="font-headline font-bold text-[#1b1c15] mb-1">File Upload</h3>
-          <p className="text-xs text-[#6f7a6e] mb-5">
+        <div className="bg-[#0f1629] border border-[#1e2d47] rounded p-6">
+          <h3 className="font-headline font-bold text-[#e2e8f8] mb-1">File Upload</h3>
+          <p className="text-xs text-[#3d5275] mb-5">
             Upload blood bank register files (.numbers, .xlsx, .csv).
             Duplicates are automatically skipped.
           </p>
@@ -122,18 +122,18 @@ export default function Upload() {
             <div
               className={`border-2 border-dashed rounded p-8 text-center cursor-pointer transition-colors ${
                 selectedFile
-                  ? 'border-[#006d30] bg-[#92f5a4]/10'
-                  : 'border-[#becabc] hover:border-[#006d30]'
+                  ? 'border-[#00d4ff] bg-[#00d4ff]/5'
+                  : 'border-[#1e2d47] hover:border-[#00d4ff]/50'
               }`}
               onClick={() => fileRef.current?.click()}
             >
-              <span className={`material-symbols-outlined text-4xl mb-2 block ${selectedFile ? 'text-[#006d30]' : 'text-[#6f7a6e]'}`}>
+              <span className={`material-symbols-outlined text-4xl mb-2 block ${selectedFile ? 'text-[#00d4ff]' : 'text-[#3d5275]'}`}>
                 {selectedFile ? 'check_circle' : 'upload_file'}
               </span>
-              <div className="text-sm font-medium text-[#1b1c15]">
+              <div className="text-sm font-medium text-[#e2e8f8]">
                 {selectedFile || 'Click to select file'}
               </div>
-              <div className="text-xs text-[#6f7a6e] mt-1">.numbers · .xlsx · .csv</div>
+              <div className="text-xs text-[#3d5275] mt-1">.numbers · .xlsx · .csv</div>
               <input
                 ref={fileRef}
                 type="file"
@@ -145,25 +145,25 @@ export default function Upload() {
 
             {/* Result banner */}
             {result && (
-              <div className="bg-[#92f5a4]/20 border border-[#006d30]/20 rounded p-4">
+              <div className="bg-[#10d48e]/10 border border-[#10d48e]/20 rounded p-4">
                 {result.message && (
-                  <div className="text-sm font-medium text-[#005323] mb-3">{result.message}</div>
+                  <div className="text-sm font-medium text-[#10d48e] mb-3">{result.message}</div>
                 )}
                 {result.batch_id && (
-                  <div className="mono-data text-[10px] text-[#6f7a6e] mb-3">
+                  <div className="mono-data text-[10px] text-[#3d5275] mb-3">
                     Batch: {result.batch_id}
                   </div>
                 )}
                 <div className="grid grid-cols-4 gap-3 text-center">
-                  {([
-                    ['Inserted',   result.inserted,   '#006d30'],
-                    ['Duplicates', result.duplicates,  '#585756'],
-                    ['Flagged',    result.flagged,     '#ba1a1a'],
-                    ['Errors',     result.errors ?? 0, '#93000a'],
-                  ] as [string, number, string][]).map(([label, val, color]) => (
+                  {(([
+                    ['Inserted',   result.inserted,   '#10d48e'],
+                    ['Duplicates', result.duplicates,  '#6b8cba'],
+                    ['Flagged',    result.flagged,     '#f59e0b'],
+                    ['Errors',     result.errors ?? 0, '#ff4757'],
+                  ]) as [string, number, string][]).map(([label, val, color]) => (
                     <div key={label}>
                       <div className="mono-data text-2xl font-bold" style={{ color }}>{val}</div>
-                      <div className="text-[10px] text-[#6f7a6e] uppercase tracking-wider mt-0.5">{label}</div>
+                      <div className="text-[10px] text-[#3d5275] uppercase tracking-wider mt-0.5">{label}</div>
                     </div>
                   ))}
                 </div>
@@ -171,7 +171,7 @@ export default function Upload() {
             )}
 
             {error && (
-              <div className="bg-[#ffdad6] border border-[#ba1a1a]/20 rounded p-3 text-xs text-[#93000a] flex items-center gap-2">
+              <div className="bg-[#ff4757]/10 border border-[#ff4757]/20 rounded p-3 text-xs text-[#ff4757] flex items-center gap-2">
                 <span className="material-symbols-outlined text-[16px]">error</span>
                 {error}
               </div>
@@ -180,7 +180,7 @@ export default function Upload() {
             <button
               type="submit"
               disabled={uploading || !selectedFile}
-              className="w-full bg-[#006d30] text-white py-3 text-sm font-bold rounded hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-40"
+              className="w-full bg-[#00d4ff] text-[#0a0e1a] py-3 text-sm font-bold rounded hover:shadow-[0_0_16px_#00d4ff40] active:scale-[0.98] transition-all disabled:opacity-30"
             >
               {uploading ? 'Processing...' : 'Upload & Ingest'}
             </button>
@@ -189,36 +189,36 @@ export default function Upload() {
 
         {/* Bulk load + system info */}
         <div className="space-y-4">
-          <div className="bg-white border border-[#becabc]/30 rounded p-6">
-            <h3 className="font-headline font-bold text-[#1b1c15] mb-1">Initial Bulk Load</h3>
-            <p className="text-xs text-[#6f7a6e] mb-5">
+          <div className="bg-[#0f1629] border border-[#1e2d47] rounded p-6">
+            <h3 className="font-headline font-bold text-[#e2e8f8] mb-1">Initial Bulk Load</h3>
+            <p className="text-xs text-[#3d5275] mb-5">
               Load all records from{' '}
-              <span className="mono-data text-[#3f493f]">cleaned_records.csv</span> into the
+              <span className="mono-data text-[#00d4ff]">cleaned_records.csv</span> into the
               database. Safe to re-run — duplicates are skipped.
             </p>
             <button
               onClick={handleBulkLoad}
               disabled={uploading}
-              className="flex items-center gap-2 border border-[#1b1c15] text-[#1b1c15] px-5 py-2.5 text-sm font-bold rounded hover:bg-[#1b1c15] hover:text-white transition-all disabled:opacity-40"
+              className="flex items-center gap-2 border border-[#1e2d47] text-[#e2e8f8] px-5 py-2.5 text-sm font-bold rounded hover:border-[#00d4ff] hover:text-[#00d4ff] transition-all disabled:opacity-30"
             >
               <span className="material-symbols-outlined text-[18px]">storage</span>
               {uploading ? 'Loading...' : 'Run Bulk Load'}
             </button>
           </div>
 
-          <div className="bg-white border border-[#becabc]/30 rounded p-6">
-            <h3 className="font-headline font-bold text-[#1b1c15] mb-3">System Info</h3>
+          <div className="bg-[#0f1629] border border-[#1e2d47] rounded p-6">
+            <h3 className="font-headline font-bold text-[#e2e8f8] mb-3">System Info</h3>
             <div className="space-y-2 text-xs">
-              {([
+              {(([
                 ['API Base',   'http://localhost:5001'],
                 ['Auth',       'admin / bloodbank2026'],
                 ['Database',   'Supabase PostgreSQL'],
                 ['ML Models',  'SES · Isolation Forest · XGBoost'],
                 ['Components', 'WB/PRC · FFP · PLT'],
-              ] as [string, string][]).map(([k, v]) => (
-                <div key={k} className="flex justify-between items-start gap-4 py-1.5 border-b border-[#becabc]/20">
-                  <span className="text-[#3f493f] font-medium shrink-0">{k}</span>
-                  <span className="mono-data text-[#6f7a6e] text-right">{v}</span>
+              ]) as [string, string][]).map(([k, v]) => (
+                <div key={k} className="flex justify-between items-start gap-4 py-1.5 border-b border-[#1e2d47]/50">
+                  <span className="text-[#6b8cba] font-medium shrink-0">{k}</span>
+                  <span className="mono-data text-[#3d5275] text-right">{v}</span>
                 </div>
               ))}
             </div>
@@ -227,25 +227,25 @@ export default function Upload() {
       </div>
 
       {/* Upload history */}
-      <div className="bg-white border border-[#becabc]/30 rounded overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#becabc]/20 flex items-center justify-between">
-          <h3 className="font-headline font-bold text-[#1b1c15]">Upload History</h3>
-          <span className="mono-data text-xs text-[#6f7a6e]">{history.length} batches</span>
+      <div className="bg-[#0f1629] border border-[#1e2d47] rounded overflow-hidden">
+        <div className="px-6 py-4 border-b border-[#1e2d47] flex items-center justify-between">
+          <h3 className="font-headline font-bold text-[#e2e8f8]">Upload History</h3>
+          <span className="mono-data text-xs text-[#3d5275]">{history.length} batches</span>
         </div>
         {loading ? (
-          <div className="px-6 py-8 text-center text-[#6f7a6e] text-sm mono-data animate-pulse">
+          <div className="px-6 py-8 text-center text-[#00d4ff] text-sm mono-data animate-pulse">
             Loading...
           </div>
         ) : history.length === 0 ? (
-          <div className="px-6 py-8 text-center text-[#6f7a6e] text-sm">
+          <div className="px-6 py-8 text-center text-[#3d5275] text-sm">
             No uploads yet — run a bulk load or upload a file above
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-[#f5f4e8]">
+              <tr className="bg-[#080c18]">
                 {['Batch ID', 'Source', 'Filename', 'Total', 'Inserted', 'Dupes', 'Flagged', 'Date'].map((h) => (
-                  <th key={h} className="px-4 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-[#3f493f]">
+                  <th key={h} className="px-4 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-[#3d5275]">
                     {h}
                   </th>
                 ))}
@@ -253,19 +253,19 @@ export default function Upload() {
             </thead>
             <tbody>
               {history.map((h, i) => (
-                <tr key={h.id ?? i} className={`border-b border-[#becabc]/10 ${i % 2 === 0 ? 'bg-white' : 'bg-[#fbfaee]'}`}>
-                  <td className="px-4 py-2 mono-data text-xs text-[#6f7a6e]" title={h.batch_id}>
+                <tr key={h.id ?? i} className={`border-b border-[#1e2d47]/40 hover:bg-[#1e2d47]/40 transition-colors ${i % 2 === 0 ? 'bg-[#0f1629]' : 'bg-[#0d1424]'}`}>
+                  <td className="px-4 py-2 mono-data text-xs text-[#3d5275]" title={h.batch_id}>
                     {h.batch_id?.slice(0, 14)}…
                   </td>
-                  <td className="px-4 py-2 mono-data text-xs text-[#3f493f]">{h.source}</td>
-                  <td className="px-4 py-2 text-xs text-[#1b1c15] max-w-[160px] truncate" title={h.filename}>
+                  <td className="px-4 py-2 mono-data text-xs text-[#6b8cba]">{h.source}</td>
+                  <td className="px-4 py-2 text-xs text-[#e2e8f8] max-w-[160px] truncate" title={h.filename}>
                     {h.filename}
                   </td>
-                  <td className="px-4 py-2 mono-data text-xs text-[#6f7a6e]">{h.total_rows ?? '—'}</td>
-                  <td className="px-4 py-2 mono-data text-xs text-[#006d30] font-bold">{h.inserted}</td>
-                  <td className="px-4 py-2 mono-data text-xs text-[#585756]">{h.duplicates}</td>
-                  <td className="px-4 py-2 mono-data text-xs text-[#ba1a1a]">{h.flagged}</td>
-                  <td className="px-4 py-2 mono-data text-xs text-[#6f7a6e]">
+                  <td className="px-4 py-2 mono-data text-xs text-[#3d5275]">{h.total_rows ?? '—'}</td>
+                  <td className="px-4 py-2 mono-data text-xs text-[#10d48e] font-bold">{h.inserted}</td>
+                  <td className="px-4 py-2 mono-data text-xs text-[#6b8cba]">{h.duplicates}</td>
+                  <td className="px-4 py-2 mono-data text-xs text-[#f59e0b]">{h.flagged}</td>
+                  <td className="px-4 py-2 mono-data text-xs text-[#3d5275]">
                     {(h.uploaded_at ?? '').slice(0, 10)}
                   </td>
                 </tr>
