@@ -139,6 +139,7 @@ def upload_file():
     name = (f.filename or "upload").strip()
     ext  = Path(name).suffix.lower()
 
+
     if ext not in ALLOWED_EXT:
         return jsonify({
             "error": f"Unsupported file type '{ext}'. Allowed: .numbers, .xlsx, .xls, .csv"

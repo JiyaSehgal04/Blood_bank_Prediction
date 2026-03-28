@@ -60,6 +60,7 @@ export default function Dashboard() {
     api.get('/dashboard/stats')
       .then((r) => {
         setStats(r.data)
+        setError('')
         setLastUpdated(new Date().toLocaleTimeString())
       })
       .catch((e) => setError(e?.response?.data?.error ?? 'Failed to load dashboard'))
@@ -80,7 +81,7 @@ export default function Dashboard() {
     </div>
   )
 
-  if (error) return (
+  if (error && !stats) return (
     <div className="bg-[#ff4757]/10 border border-[#ff4757]/20 rounded p-6 text-[#ff4757]">
       <span className="material-symbols-outlined mr-2">error</span>
       {error} — make sure the Flask API is running on port 5001.
@@ -104,6 +105,11 @@ export default function Dashboard() {
         {lastUpdated && (
           <div className="text-[10px] font-mono text-[#3d5275] mt-1">
             Last updated {lastUpdated}
+          </div>
+        )}
+        {error && stats && (
+          <div className="text-[10px] font-mono text-[#f59e0b] mt-1">
+            Poll failed — showing cached data
           </div>
         )}
       </div>
