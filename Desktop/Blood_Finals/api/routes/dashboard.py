@@ -22,7 +22,7 @@ def dashboard_stats():
     inv = client.table("blood_inventory").select(
         "blood_group,component,status,expiry_date,quantity_ml",
         count="exact"
-    ).execute()
+    ).limit(10000).execute()
 
     total_units    = inv.count or 0
     available_rows = [r for r in (inv.data or []) if r["status"] == "available"]
@@ -50,14 +50,14 @@ def dashboard_stats():
     ]
 
     # ── donors ────────────────────────────────────────────────────────────────
-    donors = client.table("donors").select("is_eligible", count="exact").execute()
+    donors = client.table("donors").select("is_eligible", count="exact").limit(10000).execute()
     total_donors   = donors.count or 0
     eligible_donors= sum(1 for d in (donors.data or []) if d.get("is_eligible"))
 
     # ── allocations ───────────────────────────────────────────────────────────
     alloc = client.table("allocation_log").select(
-        "units_requested,units_fulfilled,status"
-    ).execute()
+        "units_requested,units_fulfilled,status,created_at"
+    ).limit(10000).execute()
     alloc_rows     = alloc.data or []
     total_requested  = sum(r.get("units_requested", 0) for r in alloc_rows)
     total_fulfilled  = sum(r.get("units_fulfilled", 0) for r in alloc_rows)
@@ -73,7 +73,7 @@ def dashboard_stats():
     # ── active alerts ─────────────────────────────────────────────────────────
     alerts = client.table("alerts").select(
         "severity", count="exact"
-    ).eq("is_resolved", False).execute()
+    ).eq("is_resolved", False).limit(10000).execute()
     alert_counts = {}
     for a in (alerts.data or []):
         s = a["severity"]

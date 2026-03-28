@@ -22,7 +22,7 @@ Two modes:
 
 import sys
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -255,7 +255,7 @@ class SummaryService:
         print(f"  Total rows      : {len(rows)}")
         print(f"  Date range      : {dates[0]} → {dates[-1]}")
         print(f"  Days covered    : {len(dates)}")
-        print(f"\n  By blood group (total received across all days):")
+        print("\n  By blood group (total received across all days):")
         for bg in sorted(VALID_BLOOD_GROUPS):
             total_rec = sum(r["units_received"] for r in rows if r["blood_group"] == bg)
             total_iss = sum(r["units_issued"]   for r in rows if r["blood_group"] == bg)
@@ -269,12 +269,23 @@ class SummaryService:
     # ─────────────────────────────────────────────────────────────────────────
 
     def _fetch_all(self, table: str, cols: list) -> list:
-        result = (
-            self._client.table(table)
-            .select(",".join(cols))
-            .execute()
-        )
-        return result.data or []
+        """Paginate through all rows — Supabase caps unranged queries at 1000."""
+        all_rows: list = []
+        page_size = 1000
+        start = 0
+        while True:
+            result = (
+                self._client.table(table)
+                .select(",".join(cols))
+                .range(start, start + page_size - 1)
+                .execute()
+            )
+            batch = result.data or []
+            all_rows.extend(batch)
+            if len(batch) < page_size:
+                break
+            start += page_size
+        return all_rows
 
     def _fetch_filtered(self, table, cols, col, val) -> list:
         result = (

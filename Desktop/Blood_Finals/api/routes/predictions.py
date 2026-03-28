@@ -3,7 +3,6 @@ api/routes/predictions.py
 GET  /api/predictions          — latest forecasts per blood group
 GET  /api/predictions/seasonal — seasonal decomposition report
 GET  /api/predictions/anomalies — flagged anomaly days
-POST /api/predictions/retrain  — trigger model retrain
 GET  /api/replenishment        — recommended order quantities
 
 ML models (Steps 12-16) are built in a later phase.
@@ -17,7 +16,6 @@ from flask import Blueprint, request, jsonify
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from db.supabase_client import get_client
-from shared.cleaning_utils import VALID_BLOOD_GROUPS
 
 predictions_bp = Blueprint("predictions", __name__, url_prefix="/api")
 
@@ -36,7 +34,7 @@ def get_predictions():
     if not result.data:
         return jsonify({
             "predictions": [],
-            "message": "No predictions yet. Train the ML model first via POST /api/predictions/retrain",
+            "message": "No predictions yet. Upload data to generate predictions automatically.",
             "model_status": "not_trained"
         }), 200
 
@@ -76,18 +74,6 @@ def get_anomalies():
                         "component": component}), 200
     except Exception as e:
         return jsonify({"error": str(e), "anomalies": []}), 200
-
-
-@predictions_bp.route("/predictions/retrain", methods=["POST"])
-def retrain():
-    """Trigger ML model retrain."""
-    try:
-        from ml.scripts.train import ModelTrainer
-        trainer = ModelTrainer()
-        report  = trainer.train_all()
-        return jsonify({"status": "ok", "report": report}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 
 @predictions_bp.route("/replenishment", methods=["GET"])
