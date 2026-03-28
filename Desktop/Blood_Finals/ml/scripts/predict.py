@@ -17,15 +17,13 @@ Replenishment formula (v3):
 
 import sys
 import joblib
-import numpy as np
-import pandas as pd
 from pathlib import Path
-from datetime import date, timedelta
+from datetime import date
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from ml.scripts.preprocess import FeaturePipeline, INDIAN_BLOOD_DIST
-from ml.scripts.train      import SESForecaster, RFForecaster, AnomalyDetector
+from ml.scripts.train      import SESForecaster, XGBForecaster, AnomalyDetector  # noqa: F401
 from db.supabase_client    import get_client
 from shared.cleaning_utils import VALID_BLOOD_GROUPS
 
@@ -57,7 +55,7 @@ class MLPredictor:
         df       = self.pipe.build_features(component)
 
         ses_models = _load_model(MODELS_DIR / f"ses_{comp_key}.joblib")
-        rf_model   = _load_model(MODELS_DIR / f"rf_{comp_key}.joblib")
+        xgb_model   = _load_model(MODELS_DIR / f"xgb_{comp_key}.joblib")
         feature_cols = self.pipe.get_feature_cols()
 
         preds = []
@@ -68,13 +66,13 @@ class MLPredictor:
             else:
                 ses_pred = INDIAN_BLOOD_DIST.get(bg, 0.01) * 5
 
-            # RF prediction
-            if rf_model and rf_model.trained and not df.empty:
+            # XGB prediction
+            if xgb_model and xgb_model.trained and not df.empty:
                 row = df[df["blood_group"] == bg]
                 if not row.empty:
-                    rf_pred = rf_model.predict(row.iloc[-1])
-                    final   = round(0.7 * rf_pred + 0.3 * ses_pred, 1)
-                    model   = "ensemble_rf_ses"
+                    xgb_pred = xgb_model.predict(row.iloc[-1])
+                    final   = round(0.7 * xgb_pred + 0.3 * ses_pred, 1)
+                    model   = "ensemble_xgb_ses"
                 else:
                     final, model = ses_pred, "ses"
             else:

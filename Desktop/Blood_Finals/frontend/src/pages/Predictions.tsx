@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import api from '../lib/api'
 import {
   XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -30,32 +30,28 @@ export default function Predictions() {
   const [predictions, setPredictions] = useState<Prediction[]>([])
   const [replenishment, setReplenishment] = useState<ReplenishItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [retraining, setRetraining] = useState(false)
-  const [retainMsg, setRetainMsg] = useState('')
+  const [lastUpdated, setLastUpdated] = useState<string>('')
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [activeComponent, setActiveComponent] = useState('WB/PRC')
 
-  useEffect(() => {
+  const fetchPredictions = () => {
     Promise.all([
       api.get('/predictions'),
       api.get('/replenishment'),
     ]).then(([p, r]) => {
       setPredictions(p.data.predictions ?? [])
       setReplenishment(r.data.replenishment ?? [])
+      setLastUpdated(new Date().toLocaleTimeString())
     }).catch(console.error).finally(() => setLoading(false))
-  }, [])
-
-  const handleRetrain = async () => {
-    setRetraining(true)
-    setRetainMsg('')
-    try {
-      const r = await api.post('/predictions/retrain')
-      setRetainMsg(`Retrain complete: ${r.data.status}`)
-    } catch {
-      setRetainMsg('Retrain failed — check server logs')
-    } finally {
-      setRetraining(false)
-    }
   }
+
+  useEffect(() => {
+    fetchPredictions()
+    intervalRef.current = setInterval(fetchPredictions, 30000)
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [])
 
   const filteredPreds = predictions.filter((p) => p.component === activeComponent)
 
@@ -83,19 +79,14 @@ export default function Predictions() {
             Demand Predictions
           </h1>
         </div>
-        <div className="flex items-center gap-3">
-          {retainMsg && (
-            <span className="text-xs text-[#006d30] mono-data">{retainMsg}</span>
-          )}
-          <button
-            onClick={handleRetrain}
-            disabled={retraining}
-            className="flex items-center gap-2 bg-[#006d30] text-white px-4 py-2 text-sm font-bold rounded hover:opacity-90 transition-all disabled:opacity-50"
-          >
-            <span className="material-symbols-outlined text-[16px]">model_training</span>
-            {retraining ? 'Training...' : 'Retrain Models'}
-          </button>
-        </div>
+        {lastUpdated && (
+          <div className="text-[10px] font-mono text-[#6f7a6e]">
+            Last updated {lastUpdated}
+            {predictions.length > 0 && predictions[0]?.prediction_date && (
+              <span className="ml-2">· predictions as of {predictions[0].prediction_date}</span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Model status */}
@@ -161,7 +152,7 @@ export default function Predictions() {
               </ResponsiveContainer>
             ) : (
               <div className="h-60 flex items-center justify-center text-[#6f7a6e] text-sm">
-                No predictions — run retrain first
+                No predictions yet — upload data to generate
               </div>
             )}
           </div>

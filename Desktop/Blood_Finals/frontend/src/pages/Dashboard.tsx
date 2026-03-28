@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import api from '../lib/api'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -49,12 +49,25 @@ export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [lastUpdated, setLastUpdated] = useState<string>('')
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  useEffect(() => {
+  const fetchStats = () => {
     api.get('/dashboard/stats')
-      .then((r) => setStats(r.data))
+      .then((r) => {
+        setStats(r.data)
+        setLastUpdated(new Date().toLocaleTimeString())
+      })
       .catch((e) => setError(e?.response?.data?.error ?? 'Failed to load dashboard'))
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    fetchStats()
+    intervalRef.current = setInterval(fetchStats, 30000)
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
   }, [])
 
   if (loading) return (
@@ -84,6 +97,11 @@ export default function Dashboard() {
         <h1 className="font-headline text-3xl font-extrabold text-[#1b1c15] tracking-tight">
           Dashboard
         </h1>
+        {lastUpdated && (
+          <div className="text-[10px] font-mono text-[#6f7a6e] mt-1">
+            Last updated {lastUpdated}
+          </div>
+        )}
       </div>
 
       {/* KPI Grid */}

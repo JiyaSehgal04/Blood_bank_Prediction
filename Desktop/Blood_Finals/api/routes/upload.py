@@ -114,6 +114,20 @@ def _log_history(client, batch_id, filename, source, total, inserted, flagged, e
         print(f"  Warning: upload_history log failed: {e}")
 
 
+def _run_post_upload_predictions() -> dict:
+    """Run ML predictions + alerts after successful upload. Non-fatal."""
+    try:
+        from ml.scripts.predict import MLPredictor
+        predictor = MLPredictor()
+        all_preds = predictor.predict_all()
+        predictor.run_ml_alerts()
+        total = sum(len(p) for p in all_preds.values())
+        return {"predictions_generated": total}
+    except Exception as e:
+        print(f"  Warning: post-upload predictions failed: {e}")
+        return {"predictions_generated": 0}
+
+
 # ── routes ────────────────────────────────────────────────────────────────────
 
 @upload_bp.route("/upload", methods=["POST"])
@@ -163,6 +177,8 @@ def upload_file():
         except Exception:
             pass
 
+        pred_result = _run_post_upload_predictions()
+
         return jsonify({
             "batch_id":        batch_id,
             "total_rows":      len(raw_rows),
@@ -170,6 +186,7 @@ def upload_file():
             "duplicates":      max(0, len(valid) - inserted - errors),
             "flagged":         len(flagged),
             "errors":          errors,
+            "predictions_generated": pred_result.get("predictions_generated", 0),
             "message":         f"Processed {len(raw_rows)} rows: {inserted} inserted, "
                                f"{max(0, len(valid)-inserted-errors)} duplicates, "
                                f"{len(flagged)} flagged",
@@ -223,6 +240,8 @@ def bulk_load():
         except Exception:
             pass
 
+        pred_result = _run_post_upload_predictions()
+
         return jsonify({
             "message":    "Bulk load complete",
             "batch_id":   batch_id,
@@ -230,6 +249,7 @@ def bulk_load():
             "duplicates": duplicates,
             "flagged":    len(flagged),
             "errors":     total_errors,
+            "predictions_generated": pred_result.get("predictions_generated", 0),
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500

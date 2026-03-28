@@ -213,7 +213,7 @@ export default function Upload() {
                 ['API Base',   'http://localhost:5001'],
                 ['Auth',       'admin / bloodbank2026'],
                 ['Database',   'Supabase PostgreSQL'],
-                ['ML Models',  'SES · Isolation Forest · Random Forest'],
+                ['ML Models',  'SES · Isolation Forest · XGBoost'],
                 ['Components', 'WB/PRC · FFP · PLT'],
               ] as [string, string][]).map(([k, v]) => (
                 <div key={k} className="flex justify-between items-start gap-4 py-1.5 border-b border-[#becabc]/20">

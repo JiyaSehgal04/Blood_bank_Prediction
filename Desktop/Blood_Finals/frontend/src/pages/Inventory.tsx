@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import api from '../lib/api'
 
 interface Unit {
@@ -21,6 +21,8 @@ export default function Inventory() {
   const [bloodGroup, setBloodGroup] = useState('')
   const [component, setComponent] = useState('')
   const [status, setStatus] = useState('available')
+  const [lastUpdated, setLastUpdated] = useState<string>('')
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const load = () => {
     setLoading(true)
@@ -29,12 +31,22 @@ export default function Inventory() {
     if (component) params.set('component', component)
     if (status) params.set('status', status)
     api.get(`/inventory?${params}`)
-      .then((r) => setUnits(r.data.units ?? []))
+      .then((r) => {
+        setUnits(r.data.units ?? [])
+        setLastUpdated(new Date().toLocaleTimeString())
+      })
       .catch(console.error)
       .finally(() => setLoading(false))
   }
 
   useEffect(load, [bloodGroup, component, status])
+
+  useEffect(() => {
+    intervalRef.current = setInterval(load, 30000)
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [bloodGroup, component, status])
 
   const statusBadge = (s: string) => {
     const map: Record<string, string> = {
@@ -103,6 +115,7 @@ export default function Inventory() {
       {/* Count */}
       <div className="text-xs mono-data text-[#6f7a6e]">
         {loading ? 'Loading...' : `${units.length} units`}
+        {lastUpdated && <span className="ml-3">· Last updated {lastUpdated}</span>}
       </div>
 
       {/* Table */}
