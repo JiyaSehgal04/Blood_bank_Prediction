@@ -7,9 +7,6 @@ POST /api/upload     — upload a Numbers/Excel/CSV file, clean, upsert all reco
 GET  /api/inventory  — list units (filters: blood_group, component, status)
 """
 
-import os
-import shutil
-import tempfile
 from pathlib import Path
 
 from flask import Blueprint, request, jsonify
@@ -19,8 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from shared.cleaning_utils import (
     VALID_BLOOD_GROUPS, SHELF_LIFE_DAYS,
-    normalize_time, parse_date, make_unit_id, compute_expiry,
-    clean_raw_rows
+    normalize_time, parse_date, make_unit_id, compute_expiry
 )
 from db.supabase_client import get_client
 
@@ -40,7 +36,7 @@ def _upsert(records: list[dict]) -> tuple[int, int]:
         try:
             result = client.table(TABLE).upsert(records[i:i+batch_size], on_conflict="unit_id").execute()
             inserted += len(result.data)
-        except Exception as e:
+        except Exception:
             errors += len(records[i:i+batch_size])
     return inserted, errors
 
@@ -162,60 +158,6 @@ def add_single_unit():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
-@inventory_bp.route("/upload", methods=["POST"])
-def upload_file():
-    """
-    POST /api/upload  (multipart/form-data, field name: 'file')
-    Accepts .numbers / .xlsx / .csv
-    Returns { inserted, errors, flagged, flagged_records }
-    """
-    if "file" not in request.files:
-        return jsonify({"error": "No file field in request"}), 400
-
-    f    = request.files["file"]
-    name = f.filename or ""
-    ext  = Path(name).suffix.lower()
-
-    if ext not in ALLOWED_EXTENSIONS:
-        return jsonify({"error": f"Unsupported file type: {ext}. Allowed: {ALLOWED_EXTENSIONS}"}), 400
-
-    # Save to temp file (numbers-parser needs a real path)
-    tmp_path = tempfile.mktemp(suffix=".numbers")
-    f.save(tmp_path)
-
-    try:
-        if ext == ".csv":
-            headers, raw_rows = _read_csv(tmp_path)
-        else:
-            headers, raw_rows = _read_numbers_or_xlsx(tmp_path)
-    except Exception as e:
-        os.unlink(tmp_path)
-        return jsonify({"error": f"Could not read file: {e}"}), 422
-    finally:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
-
-    valid, flagged, log = clean_raw_rows(headers, raw_rows)
-
-    if not valid:
-        return jsonify({
-            "inserted": 0, "errors": 0,
-            "flagged": len(flagged),
-            "flagged_records": flagged,
-            "cleaning_log": log,
-            "message": "No valid records found in file"
-        }), 200
-
-    inserted, errors = _upsert(valid)
-
-    return jsonify({
-        "inserted":        inserted,
-        "errors":          errors,
-        "flagged":         len(flagged),
-        "flagged_records": flagged,
-        "cleaning_log":    log,
-    }), 200
 
 
 @inventory_bp.route("/multilist/summary", methods=["GET"])

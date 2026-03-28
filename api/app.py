@@ -67,4 +67,4 @@ if __name__ == "__main__":
     port = 5001
     print(f"\nBlood Bank API v3 — http://localhost:{port}")
     print(f"Routes: http://localhost:{port}/api/routes\n")
-    app.run(debug=True, port=port)
+    app.run(debug=False, port=port)
