@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme {
+  --color-surface: #0a0e1a;
+  --color-surface-dim: #080c18;
+  --color-surface-bright: #0f1629;
+  --color-surface-container-lowest: #060912;
+  --color-surface-container-low: #0d1424;
+  --color-surface-container: #0f1629;
+  --color-surface-container-high: #1a2744;
+  --color-surface-container-highest: #1e2d47;
+  --color-surface-variant: #1e2d47;
+  --color-background: #0a0e1a;
+  --color-on-background: #e2e8f8;
+  --color-on-surface: #e2e8f8;
+  --color-on-surface-variant: #6b8cba;
+  --color-outline: #3d5275;
+  --color-outline-variant: #1e2d47;
+  --color-primary: #00d4ff;
+  --color-on-primary: #0a0e1a;
+  --color-secondary: #38bdf8;
+  --color-on-secondary: #0a0e1a;
+  --color-secondary-container: #0ea5e9;
+  --color-on-secondary-container: #e2e8f8;
+  --color-tertiary: #10d48e;
+  --color-tertiary-container: #0a7a52;
+  --color-on-tertiary-container: #a7f3d0;
+  --color-error: #ff4757;
+  --color-error-container: #3d0a0f;
+  --color-on-error: #e2e8f8;
+  --color-on-error-container: #ff4757;
+  --color-inverse-surface: #e2e8f8;
+  --color-inverse-on-surface: #0a0e1a;
+
+  --font-headline: "Manrope", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+@layer base {
+  body {
+    font-family: "Inter", sans-serif;
+    background-color: #0a0e1a;
+    color: #e2e8f8;
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+  }
+
+  #root {
+    width: 100%;
+    min-height: 100vh;
+  }
+}
+
+.font-headline { font-family: "Manrope", sans-serif; }
+.mono-data { font-family: "JetBrains Mono", monospace; }
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-size: 20px;
+}
