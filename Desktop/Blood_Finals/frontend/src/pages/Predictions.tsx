@@ -52,29 +52,35 @@ export default function Predictions() {
   const [summaryLoading, setSummaryLoading] = useState(true)
   const [summaryError, setSummaryError] = useState('')
 
-  const loadData = () => {
+  const loadData = (signal?: AbortSignal) => {
     setLoading(true)
     Promise.all([
-      api.get('/predictions'),
-      api.get('/replenishment'),
+      api.get('/predictions', { signal }),
+      api.get('/replenishment', { signal }),
     ]).then(([p, r]) => {
       setPredictions(p.data.predictions ?? [])
       setReplenishment(r.data.replenishment ?? [])
-    }).catch(console.error).finally(() => setLoading(false))
+    }).catch((e) => {
+      if (e?.name !== 'CanceledError') console.error(e)
+    }).finally(() => setLoading(false))
   }
 
-  const fetchSummary = () => {
+  const fetchSummary = (signal?: AbortSignal) => {
     setSummaryLoading(true)
     setSummaryError('')
-    api.get('/predictions/summary')
+    api.get('/predictions/summary', { signal })
       .then((r) => setSummary(r.data.summary ?? ''))
-      .catch(() => setSummaryError('AI summary unavailable'))
+      .catch((e) => {
+        if (e?.name !== 'CanceledError') setSummaryError('AI summary unavailable')
+      })
       .finally(() => setSummaryLoading(false))
   }
 
   useEffect(() => {
-    loadData()
-    fetchSummary()
+    const controller = new AbortController()
+    loadData(controller.signal)
+    fetchSummary(controller.signal)
+    return () => controller.abort()
   }, [])
 
   const handleRunPredictions = async () => {
@@ -83,6 +89,7 @@ export default function Predictions() {
     try {
       await api.post('/predictions/run')
       loadData()
+      fetchSummary()
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } }
       setRunError(e?.response?.data?.error ?? 'Failed to run predictions')
@@ -136,8 +143,10 @@ export default function Predictions() {
           <p className="text-white/40 text-sm animate-pulse font-mono">Generating summary…</p>
         ) : summaryError ? (
           <p className="text-[#ffdad6] text-xs font-mono">{summaryError}</p>
+        ) : summary ? (
+          <p className="text-white/80 text-sm leading-relaxed line-clamp-6">{summary}</p>
         ) : (
-          <p className="text-white/80 text-sm leading-relaxed">{summary}</p>
+          <p className="text-white/40 text-xs font-mono">No summary available.</p>
         )}
       </section>
 
