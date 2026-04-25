@@ -28,20 +28,25 @@ def test_summary_returns_200_with_mocked_groq(client):
     mock_response = MagicMock()
     mock_response.choices = [mock_choice]
 
+    def make_table_mock(name):
+        m = MagicMock()
+        if name == "predictions":
+            m.select.return_value.order.return_value.limit.return_value.execute.return_value = MagicMock(data=[{
+                "blood_group": "O Pos", "component": "WB/PRC",
+                "predicted_demand": 12.5, "confidence_low": 10.0,
+                "confidence_high": 15.0, "model_used": "xgb"
+            }])
+        else:
+            m.select.return_value.order.return_value.limit.return_value.execute.return_value = MagicMock(data=[])
+        m.select.return_value.eq.return_value.in_.return_value.limit.return_value.execute.return_value = MagicMock(data=[])
+        return m
+
     mock_supabase = MagicMock()
-    mock_supabase.table.return_value.select.return_value \
-        .order.return_value.limit.return_value.execute.return_value \
-        = MagicMock(data=[{
-            "blood_group": "O Pos", "component": "WB/PRC",
-            "predicted_demand": 12.5, "confidence_low": 10.0,
-            "confidence_high": 15.0, "model_used": "xgb"
-        }])
-    mock_supabase.table.return_value.select.return_value \
-        .eq.return_value.in_.return_value.limit.return_value.execute.return_value \
-        = MagicMock(data=[])
+    mock_supabase.table.side_effect = make_table_mock
 
     with patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}), \
          patch("api.routes.predictions.get_client", return_value=mock_supabase), \
+         patch("ml.scripts.predict.MLPredictor", create=True), \
          patch("api.routes.predictions.Groq") as mock_groq_cls:
         mock_groq_cls.return_value.chat.completions.create.return_value = mock_response
         res = client.get("/api/predictions/summary")

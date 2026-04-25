@@ -109,6 +109,10 @@ def _get_summary_count() -> int:
         return 0
 
 
+def _sanitize(value: str, max_len: int = 100) -> str:
+    return str(value).replace("\n", " ").replace("\r", "")[:max_len]
+
+
 @predictions_bp.route("/predictions/summary", methods=["GET"])
 def predictions_summary():
     """AI-generated plain-English summary of current forecast data."""
@@ -150,28 +154,28 @@ def predictions_summary():
         lines = ["DEMAND FORECAST (latest predictions):"]
         for p in preds[:24]:
             lines.append(
-                f"  {p['component']} - {p['blood_group']}: "
+                f"  {_sanitize(p['component'])} - {_sanitize(p['blood_group'])}: "
                 f"{p['predicted_demand']:.1f} units predicted "
                 f"(confidence {p.get('confidence_low', 0):.1f}–{p.get('confidence_high', 0):.1f}, "
-                f"model: {p.get('model_used', 'unknown')})"
+                f"model: {_sanitize(p.get('model_used', 'unknown'))})"
             )
         if replenishment:
             lines.append("\nREPLENISHMENT RECOMMENDATIONS:")
             for r in replenishment[:10]:
                 if r.get("recommended_order", 0) > 0:
                     lines.append(
-                        f"  {r['blood_group']} {r['component']}: order {r['recommended_order']} units "
+                        f"  {_sanitize(r['blood_group'])} {_sanitize(r['component'])}: order {r['recommended_order']} units "
                         f"(stock: {r.get('current_stock', 0)}, "
                         f"expiring in 7d: {r.get('expiring_in_7d', 0)}, "
-                        f"urgency: {r.get('urgency', 'UNKNOWN')})"
+                        f"urgency: {_sanitize(r.get('urgency', 'UNKNOWN'))})"
                     )
         if alerts:
             lines.append("\nACTIVE HIGH/CRITICAL ALERTS:")
             for a in alerts[:5]:
                 lines.append(
-                    f"  [{a['severity']}] "
-                    f"{a.get('blood_group', '')} {a.get('component', '')}: "
-                    f"{a.get('message', '')}"
+                    f"  [{_sanitize(a['severity'])}] "
+                    f"{_sanitize(a.get('blood_group', ''))} {_sanitize(a.get('component', ''))}: "
+                    f"{_sanitize(a.get('message', ''), max_len=200)}"
                 )
         prompt_data = "\n".join(lines)
 
@@ -199,6 +203,8 @@ def predictions_summary():
             model="llama-3.3-70b-versatile",
             max_tokens=300,
         )
+        if not response.choices:
+            return jsonify({"error": "Summary unavailable"}), 503
         summary = response.choices[0].message.content
         return jsonify({"summary": summary}), 200
     except Exception:
