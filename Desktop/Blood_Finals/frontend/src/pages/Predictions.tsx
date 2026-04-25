@@ -65,10 +65,10 @@ export default function Predictions() {
     }).finally(() => setLoading(false))
   }
 
-  const fetchSummary = (signal?: AbortSignal) => {
+  const fetchSummary = (component: string, signal?: AbortSignal) => {
     setSummaryLoading(true)
     setSummaryError('')
-    api.get('/predictions/summary', { signal })
+    api.get('/predictions/summary', { params: { component }, signal })
       .then((r) => setSummary(r.data.summary ?? ''))
       .catch((e) => {
         if (e?.name !== 'CanceledError') setSummaryError('AI summary unavailable')
@@ -79,9 +79,14 @@ export default function Predictions() {
   useEffect(() => {
     const controller = new AbortController()
     loadData(controller.signal)
-    fetchSummary(controller.signal)
     return () => controller.abort()
   }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchSummary(activeComponent, controller.signal)
+    return () => controller.abort()
+  }, [activeComponent])
 
   const handleRunPredictions = async () => {
     setRunning(true)
@@ -89,7 +94,7 @@ export default function Predictions() {
     try {
       await api.post('/predictions/run')
       loadData()
-      fetchSummary()
+      fetchSummary(activeComponent)
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } }
       setRunError(e?.response?.data?.error ?? 'Failed to run predictions')
@@ -130,25 +135,6 @@ export default function Predictions() {
 
   return (
     <div className="space-y-10">
-
-      {/* ── AI Summary ── */}
-      <section className="bg-[#1b1c15] rounded p-6">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-[#79db8d]">
-            AI Summary · Groq / llama-3.3-70b
-          </span>
-          <span className="material-symbols-outlined text-[#79db8d] text-[18px]">auto_awesome</span>
-        </div>
-        {summaryLoading ? (
-          <p className="text-white/40 text-sm animate-pulse font-mono">Generating summary…</p>
-        ) : summaryError ? (
-          <p className="text-[#ffdad6] text-xs font-mono">{summaryError}</p>
-        ) : summary ? (
-          <p className="text-white/80 text-sm leading-relaxed line-clamp-6">{summary}</p>
-        ) : (
-          <p className="text-white/40 text-xs font-mono">No summary available.</p>
-        )}
-      </section>
 
       {/* ── Editorial header ── */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -274,69 +260,90 @@ export default function Predictions() {
         )}
       </section>
 
-      {/* ── Blood group coverage cards ── */}
-      {groupCards.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {groupCards.map((card) => {
-            const { badge, bar, label } = urgencyStyle(card.rep?.urgency ?? 'LOW')
-            const pct = card.coveragePct
-            return (
-              <div
-                key={card.blood_group}
-                className="bg-[#f5f4e8] p-6 rounded border border-[#becabc]/10 hover:border-[#006d30]/30 transition-all flex flex-col"
-              >
-                <div className="flex justify-between items-start mb-5">
-                  <span className="font-headline text-3xl font-extrabold text-[#1b1c15] tracking-tighter">
-                    {BLOOD_GROUP_SHORT[card.blood_group] ?? card.blood_group}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${badge}`}>
-                    {label}
-                  </span>
-                </div>
+      {/* ── Blood group cards + AI Summary ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                <div className="space-y-4 flex-1">
-                  <div>
-                    <p className="text-[10px] font-mono uppercase text-[#3f493f] tracking-widest mb-1">
-                      Predicted Demand
-                    </p>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="mono-data text-2xl font-bold text-[#1b1c15]">
+        {/* Left: compact scrollable blood group cards */}
+        <div className="lg:col-span-2">
+          <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#3f493f] mb-3">
+            Coverage by Blood Group — {activeComponent}
+          </p>
+          <div className="max-h-72 overflow-y-auto pr-1 space-y-0">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {groupCards.map((card) => {
+                const { badge, bar, label } = urgencyStyle(card.rep?.urgency ?? 'LOW')
+                const pct = card.coveragePct
+                return (
+                  <div
+                    key={card.blood_group}
+                    className="bg-[#f5f4e8] p-3 rounded border border-[#becabc]/10 hover:border-[#006d30]/30 transition-all flex flex-col"
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-headline text-xl font-extrabold text-[#1b1c15] tracking-tighter">
+                        {BLOOD_GROUP_SHORT[card.blood_group] ?? card.blood_group}
+                      </span>
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${badge}`}>
+                        {label}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-1 mb-1">
+                      <span className="mono-data text-base font-bold text-[#1b1c15]">
                         {card.predicted_demand.toFixed(1)}
                       </span>
-                      <span className="text-[10px] text-[#6f7a6e]">UNITS</span>
+                      <span className="text-[9px] text-[#6f7a6e]">units</span>
                     </div>
                     {card.coverageDays !== null && (
                       <>
-                        <div className="w-full h-1.5 bg-[#becabc]/20 rounded-full mt-2 overflow-hidden">
-                          <div className={`${bar} h-full rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                        <div className="w-full h-1 bg-[#becabc]/20 rounded-full overflow-hidden">
+                          <div className={`${bar} h-full rounded-full`} style={{ width: `${pct}%` }} />
                         </div>
-                        <p className="text-[9px] font-mono text-[#6f7a6e] mt-1">
-                          {card.coverageDays}d coverage
-                        </p>
+                        <p className="text-[9px] font-mono text-[#6f7a6e] mt-0.5">{card.coverageDays}d</p>
                       </>
                     )}
+                    {card.rep && (
+                      <div className="flex justify-between mt-1.5 pt-1.5 border-t border-[#becabc]/20">
+                        <span className="text-[9px] font-mono text-[#6f7a6e]">Stk <b className="text-[#1b1c15]">{card.rep.current_stock}</b></span>
+                        <span className={`text-[9px] font-mono ${card.rep.expiring_in_7d > 0 ? 'text-[#ba1a1a]' : 'text-[#006d30]'}`}>
+                          Exp <b>{card.rep.expiring_in_7d}</b>
+                        </span>
+                      </div>
+                    )}
                   </div>
-
-                  {card.rep && (
-                    <div className="flex justify-between pt-3 border-t border-[#becabc]/20">
-                      <div>
-                        <p className="text-[9px] font-mono uppercase text-[#6f7a6e] opacity-70">Stock</p>
-                        <p className="mono-data text-sm font-bold text-[#1b1c15]">{card.rep.current_stock}U</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[9px] font-mono uppercase text-[#6f7a6e] opacity-70">Expiring</p>
-                        <p className={`mono-data text-sm font-bold ${card.rep.expiring_in_7d > 0 ? 'text-[#ba1a1a]' : 'text-[#006d30]'}`}>
-                          {card.rep.expiring_in_7d}U
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                )
+              })}
+              {groupCards.length === 0 && (
+                <div className="col-span-4 py-8 text-center text-[#6f7a6e] text-sm">
+                  No data for {activeComponent}
                 </div>
-              </div>
-            )
-          })}
+              )}
+            </div>
+          </div>
         </div>
-      )}
+
+        {/* Right: AI Summary */}
+        <div className="bg-[#1b1c15] rounded p-5 flex flex-col">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-[#79db8d]">
+              AI Summary · {activeComponent}
+            </span>
+            <span className="material-symbols-outlined text-[#79db8d] text-[16px]">auto_awesome</span>
+          </div>
+          <div className="flex-1">
+            {summaryLoading ? (
+              <p className="text-white/40 text-xs animate-pulse font-mono">Generating summary…</p>
+            ) : summaryError ? (
+              <p className="text-[#ffdad6] text-xs font-mono">{summaryError}</p>
+            ) : summary ? (
+              <p className="text-white/80 text-sm leading-relaxed">{summary}</p>
+            ) : (
+              <p className="text-white/40 text-xs font-mono">No summary available.</p>
+            )}
+          </div>
+          <p className="text-[9px] font-mono text-white/20 uppercase tracking-widest mt-4">
+            Groq / llama-3.3-70b
+          </p>
+        </div>
+      </div>
 
       {/* ── Bottom: replenishment table + model card ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -113,6 +113,13 @@ def _sanitize(value: str, max_len: int = 100) -> str:
     return str(value).replace("\n", " ").replace("\r", "")[:max_len]
 
 
+_COMPONENT_NAMES = {
+    "WB/PRC": "Whole Blood / Packed Red Blood Cells (WB/PRC)",
+    "FFP":    "Fresh Frozen Plasma (FFP)",
+    "PLT":    "Platelets (PLT)",
+}
+
+
 @predictions_bp.route("/predictions/summary", methods=["GET"])
 def predictions_summary():
     """AI-generated plain-English summary of current forecast data."""
@@ -120,61 +127,69 @@ def predictions_summary():
     if not api_key:
         return jsonify({"error": "Summary unavailable"}), 503
 
+    component = request.args.get("component", "")
+    component_label = _COMPONENT_NAMES.get(component, component or "all components")
+
     client_db = get_client()
 
-    preds_result = (
+    q = (
         client_db.table("predictions")
         .select("blood_group,component,predicted_demand,confidence_low,confidence_high,model_used")
         .order("prediction_date", desc=True)
         .limit(100)
-        .execute()
     )
-    preds = preds_result.data or []
+    if component:
+        q = q.eq("component", component)
+    preds = (q.execute().data or [])
 
     replenishment = []
     try:
         from ml.scripts.predict import MLPredictor
-        replenishment = MLPredictor().replenishment_plan()
+        full_plan = MLPredictor().replenishment_plan()
+        replenishment = [r for r in full_plan if not component or r.get("component") == component]
     except Exception:
         pass
 
-    alerts_result = (
+    alerts_q = (
         client_db.table("alerts")
         .select("severity,message,blood_group,component")
         .eq("is_resolved", False)
         .in_("severity", ["HIGH", "CRITICAL"])
         .limit(20)
-        .execute()
     )
-    alerts = alerts_result.data or []
+    if component:
+        alerts_q = alerts_q.eq("component", component)
+    alerts = (alerts_q.execute().data or [])
 
     if not preds:
-        prompt_data = "No forecast data is available yet. The system has not been trained."
+        prompt_data = (
+            f"No forecast data is available yet for {component_label}. "
+            "The system has not been trained."
+        )
     else:
-        lines = ["DEMAND FORECAST (latest predictions):"]
+        lines = [f"FORECAST DATA FOR {component_label.upper()}:"]
         for p in preds[:24]:
             lines.append(
-                f"  {_sanitize(p['component'])} - {_sanitize(p['blood_group'])}: "
-                f"{p['predicted_demand']:.1f} units predicted "
-                f"(confidence {p.get('confidence_low', 0):.1f}–{p.get('confidence_high', 0):.1f}, "
-                f"model: {_sanitize(p.get('model_used', 'unknown'))})"
+                f"  {_sanitize(p['blood_group'])}: "
+                f"predicted demand = {p['predicted_demand']:.1f} units, "
+                f"range {p.get('confidence_low', 0):.1f}–{p.get('confidence_high', 0):.1f} units"
             )
         if replenishment:
-            lines.append("\nREPLENISHMENT RECOMMENDATIONS:")
-            for r in replenishment[:10]:
+            lines.append("\nORDER RECOMMENDATIONS:")
+            for r in replenishment[:8]:
                 if r.get("recommended_order", 0) > 0:
                     lines.append(
-                        f"  {_sanitize(r['blood_group'])} {_sanitize(r['component'])}: order {r['recommended_order']} units "
-                        f"(stock: {r.get('current_stock', 0)}, "
-                        f"expiring in 7d: {r.get('expiring_in_7d', 0)}, "
-                        f"urgency: {_sanitize(r.get('urgency', 'UNKNOWN'))})"
+                        f"  {_sanitize(r['blood_group'])}: "
+                        f"current stock {r.get('current_stock', 0)} units, "
+                        f"order {r['recommended_order']} units "
+                        f"({_sanitize(r.get('urgency', 'UNKNOWN'))} priority)"
                     )
         if alerts:
-            lines.append("\nACTIVE HIGH/CRITICAL ALERTS:")
+            lines.append("\nACTIVE ALERTS:")
             for a in alerts[:5]:
                 lines.append(
                     f"  [{_sanitize(a['severity'])}] "
-                    f"{_sanitize(a.get('blood_group', ''))} {_sanitize(a.get('component', ''))}: "
+                    f"{_sanitize(a.get('blood_group', ''))}: "
                     f"{_sanitize(a.get('message', ''), max_len=200)}"
                 )
         prompt_data = "\n".join(lines)
@@ -186,17 +201,22 @@ def predictions_summary():
                 {
                     "role": "system",
                     "content": (
-                        "You are a concise blood bank analyst assistant. "
-                        "Summarize the data for clinical staff. "
-                        "Be specific with numbers. Use plain English. "
-                        "No bullet points. 3-4 sentences maximum."
+                        "You are a clinical decision support assistant in a hospital blood bank. "
+                        "Your job is to help doctors and clinical staff quickly understand blood inventory status. "
+                        "Write in plain, simple English — avoid technical jargon. "
+                        "Be direct and actionable: tell them what needs attention right now and what they should do. "
+                        "Use full blood group names (e.g. 'O Positive' not 'O Pos'). "
+                        "Keep it to 3-4 sentences. No bullet points."
                     ),
                 },
                 {
                     "role": "user",
                     "content": (
-                        f"Here is today's blood bank forecast data:\n\n{prompt_data}\n\n"
-                        "Summarize the key findings and any urgent actions needed."
+                        f"Here is the current blood bank data for {component_label}:\n\n"
+                        f"{prompt_data}\n\n"
+                        "Give a brief, clear summary for the clinical team — "
+                        "what is the overall situation, what blood types need attention, "
+                        "and what actions should be taken today?"
                     ),
                 },
             ],
@@ -206,6 +226,6 @@ def predictions_summary():
         if not response.choices:
             return jsonify({"error": "Summary unavailable"}), 503
         summary = response.choices[0].message.content
-        return jsonify({"summary": summary}), 200
+        return jsonify({"summary": summary, "component": component}), 200
     except Exception:
         return jsonify({"error": "Summary unavailable"}), 503
