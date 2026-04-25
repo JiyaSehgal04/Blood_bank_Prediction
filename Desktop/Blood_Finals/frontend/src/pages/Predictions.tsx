@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '../lib/api'
 import {
   XAxis, YAxis, Tooltip, ResponsiveContainer,
-  AreaChart, Area, CartesianGrid, Legend,
+  AreaChart, Area, CartesianGrid,
 } from 'recharts'
 
 interface Prediction {
@@ -26,15 +26,34 @@ interface ReplenishItem {
   model_used: string
 }
 
+const BLOOD_GROUP_SHORT: Record<string, string> = {
+  'O Pos': 'O+',  'O Neg': 'O−',
+  'A Pos': 'A+',  'A Neg': 'A−',
+  'B Pos': 'B+',  'B Neg': 'B−',
+  'AB Pos': 'AB+','AB Neg': 'AB−',
+}
+
+function urgencyStyle(u: string) {
+  switch (u) {
+    case 'HIGH':   return { badge: 'bg-[#ffdad6] text-[#93000a]', bar: 'bg-[#ba1a1a]', label: 'CRITICAL' }
+    case 'MEDIUM': return { badge: 'bg-[#efeee3] text-[#3f493f]',  bar: 'bg-[#585756]', label: 'STABLE' }
+    default:       return { badge: 'bg-[#92f5a4]/30 text-[#005323]', bar: 'bg-[#006d30]', label: 'OPTIMAL' }
+  }
+}
+
 export default function Predictions() {
   const [predictions, setPredictions] = useState<Prediction[]>([])
   const [replenishment, setReplenishment] = useState<ReplenishItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [retraining, setRetraining] = useState(false)
-  const [retainMsg, setRetainMsg] = useState('')
+  const [running, setRunning] = useState(false)
+  const [runError, setRunError] = useState('')
   const [activeComponent, setActiveComponent] = useState('WB/PRC')
+  const [summary, setSummary] = useState('')
+  const [summaryLoading, setSummaryLoading] = useState(true)
+  const [summaryError, setSummaryError] = useState('')
 
-  useEffect(() => {
+  const loadData = () => {
+    setLoading(true)
     Promise.all([
       api.get('/predictions'),
       api.get('/replenishment'),
@@ -42,197 +61,384 @@ export default function Predictions() {
       setPredictions(p.data.predictions ?? [])
       setReplenishment(r.data.replenishment ?? [])
     }).catch(console.error).finally(() => setLoading(false))
+  }
+
+  const fetchSummary = () => {
+    setSummaryLoading(true)
+    setSummaryError('')
+    api.get('/predictions/summary')
+      .then((r) => setSummary(r.data.summary ?? ''))
+      .catch(() => setSummaryError('AI summary unavailable'))
+      .finally(() => setSummaryLoading(false))
+  }
+
+  useEffect(() => {
+    loadData()
+    fetchSummary()
   }, [])
 
-  const handleRetrain = async () => {
-    setRetraining(true)
-    setRetainMsg('')
+  const handleRunPredictions = async () => {
+    setRunning(true)
+    setRunError('')
     try {
-      const r = await api.post('/predictions/retrain')
-      setRetainMsg(`Retrain complete: ${r.data.status}`)
-    } catch {
-      setRetainMsg('Retrain failed — check server logs')
+      await api.post('/predictions/run')
+      loadData()
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string } } }
+      setRunError(e?.response?.data?.error ?? 'Failed to run predictions')
     } finally {
-      setRetraining(false)
+      setRunning(false)
     }
   }
 
   const filteredPreds = predictions.filter((p) => p.component === activeComponent)
 
   const chartData = filteredPreds.map((p) => ({
-    name: p.blood_group,
+    name: BLOOD_GROUP_SHORT[p.blood_group] ?? p.blood_group,
     demand: p.predicted_demand,
     low: p.confidence_low,
     high: p.confidence_high,
   }))
 
-  const urgencyBadge = (u: string) => ({
-    HIGH:   'bg-[#ffdad6] text-[#93000a]',
-    MEDIUM: 'bg-[#92f5a4]/30 text-[#005323]',
-    LOW:    'bg-[#e4e3d7] text-[#585756]',
-  }[u] ?? 'bg-[#efeee3] text-[#3f493f]')
+  const groupCards = (() => {
+    const repMap: Record<string, ReplenishItem> = {}
+    replenishment
+      .filter((r) => r.component === activeComponent)
+      .forEach((r) => { repMap[r.blood_group] = r })
+
+    return filteredPreds.map((p) => {
+      const rep = repMap[p.blood_group]
+      const coverageDays = rep && rep.est_demand_7d > 0
+        ? ((rep.current_stock / rep.est_demand_7d) * 7).toFixed(1)
+        : null
+      const coveragePct = rep && rep.est_demand_7d > 0
+        ? Math.min(100, (rep.current_stock / rep.est_demand_7d) * 100)
+        : 0
+      return { ...p, rep, coverageDays, coveragePct }
+    })
+  })()
+
+  const totalDemand = filteredPreds.reduce((s, p) => s + p.predicted_demand, 0)
+  const models = [...new Set(predictions.map((p) => p.model_used))].join(', ')
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.3em] mb-1">
-            MODULE_04
-          </div>
-          <h1 className="font-headline text-3xl font-extrabold text-[#1b1c15] tracking-tight">
-            Demand Predictions
+    <div className="space-y-10">
+
+      {/* ── AI Summary ── */}
+      <section className="bg-[#1b1c15] rounded p-6">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-[#79db8d]">
+            AI Summary · Groq / llama-3.3-70b
+          </span>
+          <span className="material-symbols-outlined text-[#79db8d] text-[18px]">auto_awesome</span>
+        </div>
+        {summaryLoading ? (
+          <p className="text-white/40 text-sm animate-pulse font-mono">Generating summary…</p>
+        ) : summaryError ? (
+          <p className="text-[#ffdad6] text-xs font-mono">{summaryError}</p>
+        ) : (
+          <p className="text-white/80 text-sm leading-relaxed">{summary}</p>
+        )}
+      </section>
+
+      {/* ── Editorial header ── */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="max-w-2xl">
+          <nav className="flex items-center gap-2 text-[#3f493f] text-[10px] font-mono uppercase tracking-[0.3em] mb-4">
+            <span>Analytics</span>
+            <span className="material-symbols-outlined text-[10px]">chevron_right</span>
+            <span className="text-[#006d30] font-semibold">Predictions</span>
+          </nav>
+          <h1 className="font-headline text-5xl font-extrabold tracking-tighter text-[#1b1c15] leading-tight mb-3">
+            7-Day Demand <br /><span className="text-[#006d30]">Forecast Intelligence</span>
           </h1>
+          <p className="text-[#3f493f] text-sm leading-relaxed max-w-lg">
+            Algorithmic projection of blood component requirements based on historical utilisation
+            and current inventory velocity.
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          {retainMsg && (
-            <span className="text-xs text-[#006d30] mono-data">{retainMsg}</span>
+
+        <div className="flex flex-col items-start md:items-end gap-4">
+          <div className="flex bg-[#f5f4e8] p-1 rounded">
+            {['WB/PRC', 'FFP', 'PLT'].map((c) => (
+              <button
+                key={c}
+                onClick={() => setActiveComponent(c)}
+                className={`px-4 py-1.5 text-xs font-mono font-bold uppercase tracking-wider rounded transition-colors ${
+                  activeComponent === c
+                    ? 'bg-white shadow-sm text-[#1b1c15]'
+                    : 'text-[#3f493f] hover:text-[#1b1c15]'
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={handleRunPredictions}
+            disabled={running}
+            className="flex items-center gap-2 bg-[#006d30] text-white px-4 py-2 text-xs font-bold font-mono uppercase tracking-wider rounded hover:opacity-90 disabled:opacity-50 transition-all"
+          >
+            <span className="material-symbols-outlined text-[14px]">model_training</span>
+            {running ? 'Running…' : 'Run Predictions'}
+          </button>
+
+          {runError && (
+            <div className="text-[10px] font-mono text-[#ba1a1a] max-w-xs text-right">{runError}</div>
           )}
-          <button
-            onClick={handleRetrain}
-            disabled={retraining}
-            className="flex items-center gap-2 bg-[#006d30] text-white px-4 py-2 text-sm font-bold rounded hover:opacity-90 transition-all disabled:opacity-50"
-          >
-            <span className="material-symbols-outlined text-[16px]">model_training</span>
-            {retraining ? 'Training...' : 'Retrain Models'}
-          </button>
+
+          <div className="flex items-center gap-4 text-[10px] font-mono text-[#3f493f] uppercase">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#006d30]" />Predicted Demand
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#becabc]" />Confidence Band
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Model status */}
-      <div className="grid grid-cols-3 gap-4">
-        {['WB/PRC', 'FFP', 'PLT'].map((comp) => {
-          const preds = predictions.filter((p) => p.component === comp)
-          const models = preds.length > 0 ? [...new Set(preds.map((p) => p.model_used))] : []
-          return (
-            <div key={comp} className="bg-white border border-[#becabc]/30 rounded p-4">
-              <div className="text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-2">{comp}</div>
-              <div className="mono-data text-2xl font-bold text-[#1b1c15] mb-1">{preds.length}</div>
-              <div className="text-xs text-[#6f7a6e]">predictions</div>
-              {models.length > 0 && (
-                <div className="mt-2 text-[10px] font-mono text-[#006d30]">
-                  via {models.join(', ')}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Component selector */}
-      <div className="flex gap-2">
-        {['WB/PRC', 'FFP', 'PLT'].map((c) => (
-          <button
-            key={c}
-            onClick={() => setActiveComponent(c)}
-            className={`px-4 py-1.5 text-xs font-mono font-bold uppercase tracking-wider rounded transition-colors ${
-              activeComponent === c
-                ? 'bg-[#1b1c15] text-white'
-                : 'border border-[#becabc] text-[#3f493f] hover:bg-[#f5f4e8]'
-            }`}
-          >
-            {c}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <div className="h-64 flex items-center justify-center text-[#6f7a6e] text-sm mono-data animate-pulse">
-          Loading predictions...
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Forecast Chart */}
-          <div className="bg-white border border-[#becabc]/30 rounded p-6">
-            <h3 className="font-headline font-bold text-[#1b1c15] mb-4">
-              Predicted Demand — {activeComponent}
-            </h3>
-            {chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <AreaChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#becabc22" />
-                  <XAxis dataKey="name" tick={{ fontSize: 9, fontFamily: 'JetBrains Mono', fill: '#3f493f' }} />
-                  <YAxis tick={{ fontSize: 9, fontFamily: 'JetBrains Mono', fill: '#3f493f' }} />
-                  <Tooltip contentStyle={{ background: '#1b1c15', border: 'none', borderRadius: 4, fontSize: 11, fontFamily: 'JetBrains Mono', color: '#fff' }} />
-                  <Legend wrapperStyle={{ fontSize: 10, fontFamily: 'JetBrains Mono' }} />
-                  <Area type="monotone" dataKey="high" stroke="#92f5a4" fill="#92f5a440" name="Conf. High" />
-                  <Area type="monotone" dataKey="demand" stroke="#006d30" fill="#006d3020" strokeWidth={2} name="Demand" />
-                  <Area type="monotone" dataKey="low" stroke="#4de082" fill="#4de08220" name="Conf. Low" />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-60 flex items-center justify-center text-[#6f7a6e] text-sm">
-                No predictions — run retrain first
+      {/* ── Full-width forecast chart ── */}
+      <section className="bg-white rounded border border-[#becabc]/20 overflow-hidden">
+        <div className="p-8 pb-4">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#3f493f] mb-1">
+                System Aggregate — {activeComponent}
+              </p>
+              <div className="flex items-baseline gap-3">
+                <span className="mono-data text-4xl font-bold text-[#1b1c15]">
+                  {totalDemand.toFixed(1)}
+                </span>
+                <span className="text-[#006d30] font-mono text-sm">predicted units</span>
               </div>
-            )}
-          </div>
-
-          {/* Predictions table */}
-          <div className="bg-white border border-[#becabc]/30 rounded overflow-hidden">
-            <div className="px-4 py-3 border-b border-[#becabc]/20">
-              <h3 className="font-headline font-bold text-[#1b1c15]">Forecast Details</h3>
             </div>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-[#f5f4e8]">
-                  {['Group', 'Predicted', 'Low', 'High', 'Model'].map((h) => (
-                    <th key={h} className="px-3 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-[#3f493f]">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPreds.map((p, i) => (
-                  <tr key={p.blood_group} className={`border-b border-[#becabc]/10 ${i % 2 === 0 ? 'bg-white' : 'bg-[#fbfaee]'}`}>
-                    <td className="px-3 py-2 font-medium text-[#1b1c15] text-xs">{p.blood_group}</td>
-                    <td className="px-3 py-2 mono-data text-xs font-bold text-[#006d30]">{p.predicted_demand}</td>
-                    <td className="px-3 py-2 mono-data text-xs text-[#3f493f]">{p.confidence_low}</td>
-                    <td className="px-3 py-2 mono-data text-xs text-[#3f493f]">{p.confidence_high}</td>
-                    <td className="px-3 py-2 text-[10px] font-mono text-[#6f7a6e]">{p.model_used}</td>
-                  </tr>
-                ))}
-                {filteredPreds.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-[#6f7a6e] text-sm">No data for {activeComponent}</td></tr>
-                )}
-              </tbody>
-            </table>
+            <div className="text-[10px] font-mono text-[#6f7a6e] uppercase tracking-widest">
+              Auto-updated on upload
+            </div>
           </div>
+        </div>
+
+        {loading ? (
+          <div className="h-64 flex items-center justify-center text-[#6f7a6e] text-sm mono-data animate-pulse px-8 pb-8">
+            Loading predictions…
+          </div>
+        ) : chartData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={chartData} margin={{ top: 10, right: 40, left: 0, bottom: 20 }}>
+              <defs>
+                <linearGradient id="demandFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#006d30" stopOpacity={0.15} />
+                  <stop offset="100%" stopColor="#006d30" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="highFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#92f5a4" stopOpacity={0.2} />
+                  <stop offset="100%" stopColor="#92f5a4" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#becabc22" />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 10, fontFamily: 'JetBrains Mono', fill: '#3f493f' }}
+                axisLine={false} tickLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fontFamily: 'JetBrains Mono', fill: '#3f493f' }}
+                axisLine={false} tickLine={false}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: '#1b1c15', border: 'none', borderRadius: 4,
+                  fontSize: 11, fontFamily: 'JetBrains Mono', color: '#fff',
+                }}
+              />
+              <Area type="monotone" dataKey="high" stroke="#92f5a4" fill="url(#highFill)" strokeWidth={1} name="Conf. High" />
+              <Area type="monotone" dataKey="demand" stroke="#006d30" fill="url(#demandFill)" strokeWidth={2.5} name="Demand" />
+              <Area type="monotone" dataKey="low" stroke="#4de082" fill="none" strokeWidth={1} strokeDasharray="4 4" name="Conf. Low" />
+            </AreaChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-64 flex items-center justify-center text-[#6f7a6e] text-sm px-8 pb-8">
+            No predictions yet — upload data to generate
+          </div>
+        )}
+      </section>
+
+      {/* ── Blood group coverage cards ── */}
+      {groupCards.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {groupCards.map((card) => {
+            const { badge, bar, label } = urgencyStyle(card.rep?.urgency ?? 'LOW')
+            const pct = card.coveragePct
+            return (
+              <div
+                key={card.blood_group}
+                className="bg-[#f5f4e8] p-6 rounded border border-[#becabc]/10 hover:border-[#006d30]/30 transition-all flex flex-col"
+              >
+                <div className="flex justify-between items-start mb-5">
+                  <span className="font-headline text-3xl font-extrabold text-[#1b1c15] tracking-tighter">
+                    {BLOOD_GROUP_SHORT[card.blood_group] ?? card.blood_group}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${badge}`}>
+                    {label}
+                  </span>
+                </div>
+
+                <div className="space-y-4 flex-1">
+                  <div>
+                    <p className="text-[10px] font-mono uppercase text-[#3f493f] tracking-widest mb-1">
+                      Predicted Demand
+                    </p>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="mono-data text-2xl font-bold text-[#1b1c15]">
+                        {card.predicted_demand.toFixed(1)}
+                      </span>
+                      <span className="text-[10px] text-[#6f7a6e]">UNITS</span>
+                    </div>
+                    {card.coverageDays !== null && (
+                      <>
+                        <div className="w-full h-1.5 bg-[#becabc]/20 rounded-full mt-2 overflow-hidden">
+                          <div className={`${bar} h-full rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <p className="text-[9px] font-mono text-[#6f7a6e] mt-1">
+                          {card.coverageDays}d coverage
+                        </p>
+                      </>
+                    )}
+                  </div>
+
+                  {card.rep && (
+                    <div className="flex justify-between pt-3 border-t border-[#becabc]/20">
+                      <div>
+                        <p className="text-[9px] font-mono uppercase text-[#6f7a6e] opacity-70">Stock</p>
+                        <p className="mono-data text-sm font-bold text-[#1b1c15]">{card.rep.current_stock}U</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[9px] font-mono uppercase text-[#6f7a6e] opacity-70">Expiring</p>
+                        <p className={`mono-data text-sm font-bold ${card.rep.expiring_in_7d > 0 ? 'text-[#ba1a1a]' : 'text-[#006d30]'}`}>
+                          {card.rep.expiring_in_7d}U
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 
-      {/* Replenishment plan */}
-      {replenishment.length > 0 && (
-        <div className="bg-white border border-[#becabc]/30 rounded overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#becabc]/20 flex items-center justify-between">
+      {/* ── Bottom: replenishment table + model card ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <div className="lg:col-span-2 bg-white rounded border border-[#becabc]/20 overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#becabc]/15 flex items-center justify-between">
             <h3 className="font-headline font-bold text-[#1b1c15]">Replenishment Recommendations</h3>
-            <span className="mono-data text-xs text-[#6f7a6e]">{replenishment.length} items</span>
+            <span className="mono-data text-xs text-[#6f7a6e]">
+              {replenishment.filter((r) => r.component === activeComponent).length} items
+            </span>
           </div>
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-[#f5f4e8]">
-                {['Group', 'Component', 'Current Stock', 'Est. 7d Demand', 'Expiring 7d', 'Order Qty', 'Urgency'].map((h) => (
-                  <th key={h} className="px-4 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-[#3f493f]">{h}</th>
+                {['Group', 'Stock', '7d Demand', 'Expiring', 'Order', 'Priority'].map((h) => (
+                  <th key={h} className="px-4 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-[#3f493f]">
+                    {h}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {replenishment.map((r, i) => (
-                <tr key={`${r.blood_group}-${r.component}`} className={`border-b border-[#becabc]/10 ${i % 2 === 0 ? 'bg-white' : 'bg-[#fbfaee]'}`}>
-                  <td className="px-4 py-2 font-medium text-[#1b1c15] text-xs">{r.blood_group}</td>
-                  <td className="px-4 py-2 mono-data text-xs text-[#3f493f]">{r.component}</td>
-                  <td className="px-4 py-2 mono-data text-xs">{r.current_stock}</td>
-                  <td className="px-4 py-2 mono-data text-xs">{r.est_demand_7d}</td>
-                  <td className="px-4 py-2 mono-data text-xs text-[#ba1a1a]">{r.expiring_in_7d}</td>
-                  <td className="px-4 py-2 mono-data text-xs font-bold text-[#006d30]">{r.recommended_order}</td>
-                  <td className="px-4 py-2">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${urgencyBadge(r.urgency)}`}>
-                      {r.urgency}
-                    </span>
+              {replenishment
+                .filter((r) => r.component === activeComponent)
+                .map((r, i) => {
+                  const { badge, label } = urgencyStyle(r.urgency)
+                  return (
+                    <tr
+                      key={`${r.blood_group}-${r.component}`}
+                      className={`border-b border-[#becabc]/10 ${i % 2 === 0 ? 'bg-white' : 'bg-[#fbfaee]'}`}
+                    >
+                      <td className="px-4 py-2.5 font-bold text-[#1b1c15] mono-data text-sm">
+                        {BLOOD_GROUP_SHORT[r.blood_group] ?? r.blood_group}
+                      </td>
+                      <td className="px-4 py-2.5 mono-data text-xs">{r.current_stock}</td>
+                      <td className="px-4 py-2.5 mono-data text-xs">{r.est_demand_7d}</td>
+                      <td className={`px-4 py-2.5 mono-data text-xs ${r.expiring_in_7d > 0 ? 'text-[#ba1a1a] font-bold' : ''}`}>
+                        {r.expiring_in_7d}
+                      </td>
+                      <td className="px-4 py-2.5 mono-data text-xs font-bold text-[#006d30]">
+                        {r.recommended_order}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${badge}`}>
+                          {label}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              {replenishment.filter((r) => r.component === activeComponent).length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-[#6f7a6e] text-sm">
+                    No replenishment data for {activeComponent}
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
-      )}
+
+        {/* Model info card */}
+        <div className="bg-[#1b1c15] p-8 rounded relative overflow-hidden group">
+          <div className="absolute -right-12 -top-12 w-48 h-48 bg-white/5 rounded-full blur-3xl group-hover:bg-white/10 transition-all" />
+          <h3 className="font-headline text-lg font-bold mb-1 relative z-10 text-white">Model Intelligence</h3>
+          <p className="text-[10px] font-mono uppercase tracking-widest text-white/50 mb-8 relative z-10">
+            Active Ensemble
+          </p>
+
+          <div className="relative z-10 space-y-5">
+            <div>
+              <p className="text-[10px] font-mono uppercase tracking-widest text-white/50 mb-1">Algorithms</p>
+              <p className="mono-data text-sm font-bold uppercase text-[#79db8d]">{models || '—'}</p>
+            </div>
+
+            <div>
+              <div className="flex justify-between text-[10px] font-mono uppercase mb-1.5 text-white/70">
+                <span>Prediction Coverage</span>
+                <span>{predictions.length} records</span>
+              </div>
+              <div className="w-full h-1 bg-white/20 rounded-full">
+                <div className="h-full bg-[#79db8d] rounded-full" style={{ width: predictions.length > 0 ? '95%' : '0%' }} />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between text-[10px] font-mono uppercase mb-1.5 text-white/70">
+                <span>Components Modelled</span>
+                <span>{[...new Set(predictions.map((p) => p.component))].length} / 3</span>
+              </div>
+              <div className="w-full h-1 bg-white/20 rounded-full">
+                <div
+                  className="h-full bg-[#79db8d] rounded-full"
+                  style={{ width: `${([...new Set(predictions.map((p) => p.component))].length / 3) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-white/10">
+              <p className="text-[10px] font-mono uppercase text-white/40 mb-1">Last Prediction Date</p>
+              <p className="mono-data text-sm text-white">
+                {predictions[0]?.prediction_date ?? '—'}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-8 text-[10px] font-mono text-white/30 uppercase tracking-widest relative z-10">
+            Models retrain automatically after each upload
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
