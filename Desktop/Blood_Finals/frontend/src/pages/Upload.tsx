@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import api from '../lib/api'
 
 interface UploadRecord {
@@ -22,16 +22,42 @@ interface UploadResult {
   message?: string
   batch_id?: string
   total_rows?: number
+  predictions_generated?: number
+}
+
+type BusyAction = 'upload' | 'bulk' | null
+
+const ACCEPTED_EXTENSIONS = ['.xlsx', '.csv']
+
+function isAcceptedFile(file: File) {
+  const name = file.name.toLowerCase()
+  return ACCEPTED_EXTENSIONS.some((ext) => name.endsWith(ext))
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+function metricColor(label: string) {
+  if (label === 'Inserted') return '#006d30'
+  if (label === 'Flagged') return '#ba1a1a'
+  if (label === 'Errors') return '#93000a'
+  return '#3f493f'
 }
 
 export default function Upload() {
   const [history, setHistory] = useState<UploadRecord[]>([])
   const [loading, setLoading] = useState(true)
-  const [uploading, setUploading] = useState(false)
+  const [busyAction, setBusyAction] = useState<BusyAction>(null)
   const [result, setResult] = useState<UploadResult | null>(null)
   const [error, setError] = useState('')
-  const [selectedFile, setSelectedFile] = useState<string>('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [dragActive, setDragActive] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const uploading = busyAction !== null
 
   const loadHistory = () => {
     api.get('/upload/history')
@@ -42,128 +68,216 @@ export default function Upload() {
 
   useEffect(loadHistory, [])
 
-  const handleFileChange = () => {
-    setSelectedFile(fileRef.current?.files?.[0]?.name ?? '')
+  const latestBatch = history[0]
+  const importedTotal = useMemo(
+    () => history.reduce((sum, row) => sum + (row.inserted ?? 0), 0),
+    [history],
+  )
+
+  const chooseFile = (file?: File) => {
     setResult(null)
     setError('')
+    if (!file) {
+      setSelectedFile(null)
+      return
+    }
+    if (!isAcceptedFile(file)) {
+      setSelectedFile(null)
+      if (fileRef.current) fileRef.current.value = ''
+      setError('Upload an Excel .xlsx file or a .csv export.')
+      return
+    }
+    setSelectedFile(file)
+  }
+
+  const handleFileChange = () => {
+    chooseFile(fileRef.current?.files?.[0])
+  }
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    setDragActive(false)
+    chooseFile(e.dataTransfer.files?.[0])
   }
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault()
-    const file = fileRef.current?.files?.[0]
-    if (!file) { setError('Please select a file first'); return }
-    setUploading(true)
+    if (!selectedFile) {
+      setError('Select an Excel .xlsx file or CSV export first.')
+      return
+    }
+
+    setBusyAction('upload')
     setResult(null)
     setError('')
 
     const fd = new FormData()
-    fd.append('file', file)
+    fd.append('file', selectedFile)
 
     try {
-      const r = await api.post('/upload', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      const r = await api.post('/upload', fd)
       setResult(r.data)
-      setSelectedFile('')
+      setSelectedFile(null)
       if (fileRef.current) fileRef.current.value = ''
       loadHistory()
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } }
-      setError(e?.response?.data?.error ?? 'Upload failed — check the server logs')
+      setError(e?.response?.data?.error ?? 'Upload failed. Check that the sheet headers match the register format.')
     } finally {
-      setUploading(false)
+      setBusyAction(null)
     }
   }
 
   const handleBulkLoad = async () => {
-    setUploading(true)
+    setBusyAction('bulk')
     setResult(null)
     setError('')
     try {
       const r = await api.post('/upload/bulk-load')
       setResult({
-        inserted:   r.data.inserted   ?? 0,
+        inserted: r.data.inserted ?? 0,
         duplicates: r.data.duplicates ?? 0,
-        flagged:    r.data.flagged    ?? 0,
-        errors:     r.data.errors     ?? 0,
-        message:    r.data.message,
-        batch_id:   r.data.batch_id,
+        flagged: r.data.flagged ?? 0,
+        errors: r.data.errors ?? 0,
+        message: r.data.message,
+        batch_id: r.data.batch_id,
+        total_rows: r.data.total_rows,
+        predictions_generated: r.data.predictions_generated,
       })
       loadHistory()
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } }
-      setError(e?.response?.data?.error ?? 'Bulk load failed')
+      setError(e?.response?.data?.error ?? 'Bulk load failed.')
     } finally {
-      setUploading(false)
+      setBusyAction(null)
     }
   }
 
+  const resultMetrics = result
+    ? ([
+        ['Rows', result.total_rows ?? 0],
+        ['Inserted', result.inserted],
+        ['Duplicates', result.duplicates],
+        ['Flagged', result.flagged],
+        ['Errors', result.errors ?? 0],
+      ] as [string, number][])
+    : []
+
   return (
-    <div className="space-y-8">
-      <div>
-        <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.3em] mb-1">
-          Data Ingestion
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.3em] mb-1">
+            Data Ingestion
+          </div>
+          <h1 className="font-headline text-3xl font-extrabold text-[#1b1c15] tracking-tight">
+            Upload Register
+          </h1>
         </div>
-        <h1 className="font-headline text-3xl font-extrabold text-[#1b1c15] tracking-tight">
-          Upload & Settings
-        </h1>
+        <div className="flex flex-wrap gap-2">
+          {[
+            ['Batches', history.length],
+            ['Loaded', importedTotal],
+            ['Latest', latestBatch?.uploaded_at ? latestBatch.uploaded_at.slice(0, 10) : 'None'],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded border border-[#becabc]/50 bg-white px-3 py-2 min-w-[92px]">
+              <div className="text-[10px] uppercase tracking-wider text-[#6f7a6e]">{label}</div>
+              <div className="mono-data text-sm font-bold text-[#1b1c15]">{value}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* File upload */}
-        <div className="bg-white border border-[#becabc]/30 rounded p-6">
-          <h3 className="font-headline font-bold text-[#1b1c15] mb-1">File Upload</h3>
-          <p className="text-xs text-[#6f7a6e] mb-5">
-            Upload blood bank register files (.numbers, .xlsx, .csv).
-            Duplicates are automatically skipped.
-          </p>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] gap-6">
+        <div className="bg-white border border-[#becabc]/40 rounded overflow-hidden">
+          <div className="px-6 py-5 border-b border-[#becabc]/25 flex items-center justify-between gap-4">
+            <div>
+              <h3 className="font-headline font-bold text-[#1b1c15]">Excel to Database</h3>
+              <p className="text-xs text-[#6f7a6e] mt-1">Accepted formats: .xlsx and .csv</p>
+            </div>
+            <div className="hidden sm:flex items-center gap-2 text-xs mono-data text-[#006d30]">
+              <span className="material-symbols-outlined text-[18px]">verified</span>
+              Duplicate-safe
+            </div>
+          </div>
 
-          <form onSubmit={handleUpload} className="space-y-4">
+          <form onSubmit={handleUpload} className="p-6 space-y-5">
             <div
-              className={`border-2 border-dashed rounded p-8 text-center cursor-pointer transition-colors ${
-                selectedFile
-                  ? 'border-[#006d30] bg-[#92f5a4]/10'
-                  : 'border-[#becabc] hover:border-[#006d30]'
+              className={`relative border-2 border-dashed rounded min-h-[240px] flex flex-col items-center justify-center text-center px-6 transition-all ${
+                dragActive
+                  ? 'border-[#006d30] bg-[#92f5a4]/15'
+                  : selectedFile
+                    ? 'border-[#006d30] bg-[#f7fff7]'
+                    : 'border-[#becabc] bg-[#fbfaee] hover:border-[#006d30]'
               }`}
               onClick={() => fileRef.current?.click()}
+              onDragEnter={(e) => { e.preventDefault(); setDragActive(true) }}
+              onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
+              onDragLeave={(e) => { e.preventDefault(); setDragActive(false) }}
+              onDrop={handleDrop}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') fileRef.current?.click()
+              }}
             >
-              <span className={`material-symbols-outlined text-4xl mb-2 block ${selectedFile ? 'text-[#006d30]' : 'text-[#6f7a6e]'}`}>
-                {selectedFile ? 'check_circle' : 'upload_file'}
-              </span>
-              <div className="text-sm font-medium text-[#1b1c15]">
-                {selectedFile || 'Click to select file'}
+              <div className={`h-14 w-14 rounded-full flex items-center justify-center mb-4 ${
+                selectedFile ? 'bg-[#006d30] text-white' : 'bg-white border border-[#becabc]/60 text-[#006d30]'
+              }`}>
+                <span className="material-symbols-outlined text-[30px]">
+                  {selectedFile ? 'description' : 'upload_file'}
+                </span>
               </div>
-              <div className="text-xs text-[#6f7a6e] mt-1">.numbers · .xlsx · .csv</div>
+              <div className="font-headline text-lg font-bold text-[#1b1c15]">
+                {selectedFile ? selectedFile.name : 'Drop Excel file here'}
+              </div>
+              <div className="text-xs text-[#6f7a6e] mt-2">
+                {selectedFile ? formatBytes(selectedFile.size) : 'or browse from your computer'}
+              </div>
               <input
                 ref={fileRef}
                 type="file"
-                accept=".numbers,.xlsx,.csv"
+                accept=".xlsx,.csv"
                 className="hidden"
                 onChange={handleFileChange}
               />
             </div>
 
-            {/* Result banner */}
+            {selectedFile && (
+              <div className="flex items-center justify-between gap-3 rounded border border-[#becabc]/40 bg-[#f5f4e8] px-4 py-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-bold text-[#1b1c15] truncate">{selectedFile.name}</div>
+                  <div className="text-xs text-[#6f7a6e] mono-data">{formatBytes(selectedFile.size)}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => chooseFile(undefined)}
+                  className="h-9 w-9 rounded border border-[#becabc] text-[#3f493f] hover:bg-white transition-colors"
+                  aria-label="Remove selected file"
+                >
+                  <span className="material-symbols-outlined text-[18px]">close</span>
+                </button>
+              </div>
+            )}
+
             {result && (
-              <div className="bg-[#92f5a4]/20 border border-[#006d30]/20 rounded p-4">
-                {result.message && (
-                  <div className="text-sm font-medium text-[#005323] mb-3">{result.message}</div>
-                )}
-                {result.batch_id && (
-                  <div className="mono-data text-[10px] text-[#6f7a6e] mb-3">
-                    Batch: {result.batch_id}
+              <div className="border border-[#006d30]/25 bg-[#f1fff1] rounded p-4">
+                <div className="flex items-start justify-between gap-4 mb-4">
+                  <div>
+                    <div className="text-sm font-bold text-[#005323]">{result.message ?? 'Load complete'}</div>
+                    {result.batch_id && (
+                      <div className="mono-data text-[10px] text-[#6f7a6e] mt-1">Batch {result.batch_id}</div>
+                    )}
                   </div>
-                )}
-                <div className="grid grid-cols-4 gap-3 text-center">
-                  {([
-                    ['Inserted',   result.inserted,   '#006d30'],
-                    ['Duplicates', result.duplicates,  '#585756'],
-                    ['Flagged',    result.flagged,     '#ba1a1a'],
-                    ['Errors',     result.errors ?? 0, '#93000a'],
-                  ] as [string, number, string][]).map(([label, val, color]) => (
-                    <div key={label}>
-                      <div className="mono-data text-2xl font-bold" style={{ color }}>{val}</div>
-                      <div className="text-[10px] text-[#6f7a6e] uppercase tracking-wider mt-0.5">{label}</div>
+                  <span className="material-symbols-outlined text-[#006d30]">check_circle</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  {resultMetrics.map(([label, value]) => (
+                    <div key={label} className="bg-white border border-[#becabc]/35 rounded px-3 py-3">
+                      <div className="mono-data text-xl font-bold" style={{ color: metricColor(label) }}>
+                        {value}
+                      </div>
+                      <div className="text-[10px] uppercase tracking-wider text-[#6f7a6e]">{label}</div>
                     </div>
                   ))}
                 </div>
@@ -171,52 +285,73 @@ export default function Upload() {
             )}
 
             {error && (
-              <div className="bg-[#ffdad6] border border-[#ba1a1a]/20 rounded p-3 text-xs text-[#93000a] flex items-center gap-2">
-                <span className="material-symbols-outlined text-[16px]">error</span>
-                {error}
+              <div className="bg-[#ffdad6] border border-[#ba1a1a]/20 rounded p-3 text-xs text-[#93000a] flex items-start gap-2">
+                <span className="material-symbols-outlined text-[16px] shrink-0">error</span>
+                <span>{error}</span>
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={uploading || !selectedFile}
-              className="w-full bg-[#006d30] text-white py-3 text-sm font-bold rounded hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-40"
-            >
-              {uploading ? 'Processing...' : 'Upload & Ingest'}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                type="submit"
+                disabled={uploading || !selectedFile}
+                className="flex-1 inline-flex items-center justify-center gap-2 bg-[#006d30] text-white px-5 py-3 text-sm font-bold rounded hover:bg-[#005323] active:scale-[0.99] transition-all disabled:opacity-40 disabled:active:scale-100"
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  {busyAction === 'upload' ? 'sync' : 'database_upload'}
+                </span>
+                {busyAction === 'upload' ? 'Loading to Database...' : 'Load to Database'}
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkLoad}
+                disabled={uploading}
+                className="inline-flex items-center justify-center gap-2 border border-[#1b1c15] text-[#1b1c15] px-5 py-3 text-sm font-bold rounded hover:bg-[#1b1c15] hover:text-white transition-all disabled:opacity-40"
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  {busyAction === 'bulk' ? 'sync' : 'storage'}
+                </span>
+                {busyAction === 'bulk' ? 'Bulk Loading...' : 'Load Seed CSV'}
+              </button>
+            </div>
           </form>
         </div>
 
-        {/* Bulk load + system info */}
         <div className="space-y-4">
-          <div className="bg-white border border-[#becabc]/30 rounded p-6">
-            <h3 className="font-headline font-bold text-[#1b1c15] mb-1">Initial Bulk Load</h3>
-            <p className="text-xs text-[#6f7a6e] mb-5">
-              Load all records from{' '}
-              <span className="mono-data text-[#3f493f]">cleaned_records.csv</span> into the
-              database. Safe to re-run — duplicates are skipped.
-            </p>
-            <button
-              onClick={handleBulkLoad}
-              disabled={uploading}
-              className="flex items-center gap-2 border border-[#1b1c15] text-[#1b1c15] px-5 py-2.5 text-sm font-bold rounded hover:bg-[#1b1c15] hover:text-white transition-all disabled:opacity-40"
-            >
-              <span className="material-symbols-outlined text-[18px]">storage</span>
-              {uploading ? 'Loading...' : 'Run Bulk Load'}
-            </button>
+          <div className="bg-white border border-[#becabc]/40 rounded p-5">
+            <h3 className="font-headline font-bold text-[#1b1c15] mb-4">Pipeline</h3>
+            <div className="space-y-3">
+              {[
+                ['upload_file', 'Read file', selectedFile ? 'Ready' : 'Waiting'],
+                ['rule', 'Clean rows', result ? `${result.flagged} flagged` : 'Automatic'],
+                ['database', 'Insert records', result ? `${result.inserted} inserted` : 'Duplicate-safe'],
+                ['monitoring', 'Refresh models', result?.predictions_generated != null ? `${result.predictions_generated} predictions` : 'After load'],
+              ].map(([icon, label, value], index) => (
+                <div key={label} className="flex items-center gap-3">
+                  <div className={`h-9 w-9 rounded flex items-center justify-center border ${
+                    result || index === 0 ? 'border-[#006d30]/30 text-[#006d30] bg-[#92f5a4]/15' : 'border-[#becabc]/50 text-[#6f7a6e] bg-[#fbfaee]'
+                  }`}>
+                    <span className="material-symbols-outlined text-[18px]">{icon}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-bold text-[#1b1c15]">{label}</div>
+                    <div className="text-xs text-[#6f7a6e]">{value}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="bg-white border border-[#becabc]/30 rounded p-6">
+          <div className="bg-white border border-[#becabc]/40 rounded p-5">
             <h3 className="font-headline font-bold text-[#1b1c15] mb-3">System Info</h3>
             <div className="space-y-2 text-xs">
               {([
-                ['API Base',   'http://localhost:5001'],
-                ['Auth',       'admin / bloodbank2026'],
-                ['Database',   'Supabase PostgreSQL'],
-                ['ML Models',  'SES · Isolation Forest · Random Forest'],
-                ['Components', 'WB/PRC · FFP · PLT'],
+                ['API Base', 'http://localhost:5001'],
+                ['Database', 'Supabase PostgreSQL'],
+                ['Dedup Key', 'S.No + Segment + Component'],
+                ['Formats', '.xlsx · .csv'],
               ] as [string, string][]).map(([k, v]) => (
-                <div key={k} className="flex justify-between items-start gap-4 py-1.5 border-b border-[#becabc]/20">
+                <div key={k} className="flex justify-between items-start gap-4 py-1.5 border-b border-[#becabc]/20 last:border-b-0">
                   <span className="text-[#3f493f] font-medium shrink-0">{k}</span>
                   <span className="mono-data text-[#6f7a6e] text-right">{v}</span>
                 </div>
@@ -226,52 +361,54 @@ export default function Upload() {
         </div>
       </div>
 
-      {/* Upload history */}
-      <div className="bg-white border border-[#becabc]/30 rounded overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#becabc]/20 flex items-center justify-between">
+      <div className="bg-white border border-[#becabc]/40 rounded overflow-hidden">
+        <div className="px-4 py-3 border-b border-[#becabc]/20 flex items-center justify-between">
           <h3 className="font-headline font-bold text-[#1b1c15]">Upload History</h3>
           <span className="mono-data text-xs text-[#6f7a6e]">{history.length} batches</span>
         </div>
         {loading ? (
-          <div className="px-6 py-8 text-center text-[#6f7a6e] text-sm mono-data animate-pulse">
+          <div className="px-4 py-6 text-center text-[#6f7a6e] text-sm mono-data animate-pulse">
             Loading...
           </div>
         ) : history.length === 0 ? (
-          <div className="px-6 py-8 text-center text-[#6f7a6e] text-sm">
-            No uploads yet — run a bulk load or upload a file above
+          <div className="px-4 py-6 text-center text-[#6f7a6e] text-sm">
+            No upload batches yet
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-[#f5f4e8]">
-                {['Batch ID', 'Source', 'Filename', 'Total', 'Inserted', 'Dupes', 'Flagged', 'Date'].map((h) => (
-                  <th key={h} className="px-4 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-[#3f493f]">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {history.map((h, i) => (
-                <tr key={h.id ?? i} className={`border-b border-[#becabc]/10 ${i % 2 === 0 ? 'bg-white' : 'bg-[#fbfaee]'}`}>
-                  <td className="px-4 py-2 mono-data text-xs text-[#6f7a6e]" title={h.batch_id}>
-                    {h.batch_id?.slice(0, 14)}…
-                  </td>
-                  <td className="px-4 py-2 mono-data text-xs text-[#3f493f]">{h.source}</td>
-                  <td className="px-4 py-2 text-xs text-[#1b1c15] max-w-[160px] truncate" title={h.filename}>
-                    {h.filename}
-                  </td>
-                  <td className="px-4 py-2 mono-data text-xs text-[#6f7a6e]">{h.total_rows ?? '—'}</td>
-                  <td className="px-4 py-2 mono-data text-xs text-[#006d30] font-bold">{h.inserted}</td>
-                  <td className="px-4 py-2 mono-data text-xs text-[#585756]">{h.duplicates}</td>
-                  <td className="px-4 py-2 mono-data text-xs text-[#ba1a1a]">{h.flagged}</td>
-                  <td className="px-4 py-2 mono-data text-xs text-[#6f7a6e]">
-                    {(h.uploaded_at ?? '').slice(0, 10)}
-                  </td>
+          <div className="max-h-[280px] overflow-auto">
+            <table className="w-full text-sm min-w-[760px]">
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-[#f5f4e8]">
+                  {['Batch ID', 'Source', 'Filename', 'Total', 'Inserted', 'Dupes', 'Flagged', 'Errors', 'Date'].map((h) => (
+                    <th key={h} className="px-3 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-[#3f493f] whitespace-nowrap">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {history.map((h, i) => (
+                  <tr key={h.id ?? i} className={`border-b border-[#becabc]/10 ${i % 2 === 0 ? 'bg-white' : 'bg-[#fbfaee]'}`}>
+                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#6f7a6e] whitespace-nowrap" title={h.batch_id}>
+                      {h.batch_id?.slice(0, 16)}...
+                    </td>
+                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#3f493f] whitespace-nowrap">{h.source}</td>
+                    <td className="px-3 py-1.5 text-xs text-[#1b1c15] max-w-[180px] truncate" title={h.filename}>
+                      {h.filename}
+                    </td>
+                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#6f7a6e]">{h.total_rows ?? '-'}</td>
+                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#006d30] font-bold">{h.inserted}</td>
+                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#585756]">{h.duplicates}</td>
+                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#ba1a1a]">{h.flagged}</td>
+                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#93000a]">{h.errors ?? 0}</td>
+                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#6f7a6e] whitespace-nowrap">
+                      {(h.uploaded_at ?? '').slice(0, 10)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

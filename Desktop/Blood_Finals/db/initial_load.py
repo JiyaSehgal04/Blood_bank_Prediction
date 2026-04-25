@@ -48,10 +48,10 @@ def upsert_batch(client, records: list) -> tuple:
     try:
         result = (
             client.table(TABLE)
-            .upsert(records, on_conflict="sno,segment_no,component")
+            .upsert(records, on_conflict="sno,segment_no,component", ignore_duplicates=True)
             .execute()
         )
-        return len(result.data), 0
+        return len(result.data or []), 0
     except Exception as e:
         print(f"  ERROR: {e}")
         return 0, len(records)

@@ -1,6 +1,6 @@
 """
 api/routes/upload.py
-POST /api/upload          — upload new register file, clean, upsert
+POST /api/upload          — upload new Excel/CSV register file, clean, insert
 GET  /api/upload/history  — list all upload batches
 POST /api/upload/bulk-load — re-run bulk load from cleaned_records.csv
 """
@@ -21,28 +21,14 @@ upload_bp    = Blueprint("upload", __name__, url_prefix="/api")
 TABLE        = "blood_inventory"
 HISTORY_TABLE= "upload_history"
 BATCH_SIZE   = 50
-ALLOWED_EXT  = {".numbers", ".xlsx", ".xls", ".csv"}
+ALLOWED_EXT  = {".csv", ".xlsx"}
+ALLOWED_EXT_LABEL = ", ".join(sorted(ALLOWED_EXT))
 
 
 # ── file readers ──────────────────────────────────────────────────────────────
 
-def _read_numbers(path: str):
-    """Read Apple Numbers file via numbers-parser."""
-    from numbers_parser import Document
-    doc   = Document(path)
-    table = doc.sheets[0].tables[0]
-    rows  = list(table.iter_rows())
-    headers  = [str(c.value) if c.value is not None else "" for c in rows[0]]
-    raw_rows = [
-        [c.value if c.value is not None else "" for c in row]
-        for row in rows[1:]
-        if any(c.value for c in row)   # skip completely blank rows
-    ]
-    return headers, raw_rows
-
-
 def _read_xlsx(path: str):
-    """Read Excel .xlsx/.xls file via openpyxl."""
+    """Read Excel .xlsx file via openpyxl."""
     import openpyxl
     wb    = openpyxl.load_workbook(path, data_only=True)
     ws    = wb.active
@@ -72,10 +58,7 @@ def _parse_file(tmp_path: str, ext: str):
     """Dispatch to the correct reader based on extension."""
     if ext == ".csv":
         return _read_csv(tmp_path)
-    elif ext in (".xlsx", ".xls"):
-        return _read_xlsx(tmp_path)
-    else:   # .numbers
-        return _read_numbers(tmp_path)
+    return _read_xlsx(tmp_path)
 
 
 # ── db helpers ────────────────────────────────────────────────────────────────
@@ -88,9 +71,10 @@ def _upsert(client, records: list, batch_id: str) -> tuple:
         try:
             result = (client.table(TABLE)
                       .upsert(records[i:i + BATCH_SIZE],
-                              on_conflict="sno,segment_no,component")
+                              on_conflict="sno,segment_no,component",
+                              ignore_duplicates=True)
                       .execute())
-            inserted += len(result.data)
+            inserted += len(result.data or [])
         except Exception as e:
             print(f"  Upsert error batch {i}: {e}")
             errors += len(records[i:i + BATCH_SIZE])
@@ -114,6 +98,20 @@ def _log_history(client, batch_id, filename, source, total, inserted, flagged, e
         print(f"  Warning: upload_history log failed: {e}")
 
 
+def _run_post_upload_predictions() -> dict:
+    """Run ML predictions + alerts after successful upload. Non-fatal."""
+    try:
+        from ml.scripts.predict import MLPredictor
+        predictor = MLPredictor()
+        all_preds = predictor.predict_all()
+        predictor.run_ml_alerts()
+        total = sum(len(p) for p in all_preds.values())
+        return {"predictions_generated": total}
+    except Exception as e:
+        print(f"  Warning: post-upload predictions failed: {e}")
+        return {"predictions_generated": 0}
+
+
 # ── routes ────────────────────────────────────────────────────────────────────
 
 @upload_bp.route("/upload", methods=["POST"])
@@ -127,11 +125,13 @@ def upload_file():
 
     if ext not in ALLOWED_EXT:
         return jsonify({
-            "error": f"Unsupported file type '{ext}'. Allowed: .numbers, .xlsx, .xls, .csv"
+            "error": f"Unsupported file type '{ext}'. Allowed: {ALLOWED_EXT_LABEL}"
         }), 400
 
     # Save to temp file preserving original extension
-    tmp = tempfile.mktemp(suffix=ext)
+    tmp_file = tempfile.NamedTemporaryFile(suffix=ext, delete=False)
+    tmp = tmp_file.name
+    tmp_file.close()
     try:
         f.save(tmp)
 
@@ -163,6 +163,8 @@ def upload_file():
         except Exception:
             pass
 
+        pred_result = _run_post_upload_predictions()
+
         return jsonify({
             "batch_id":        batch_id,
             "total_rows":      len(raw_rows),
@@ -170,6 +172,7 @@ def upload_file():
             "duplicates":      max(0, len(valid) - inserted - errors),
             "flagged":         len(flagged),
             "errors":          errors,
+            "predictions_generated": pred_result.get("predictions_generated", 0),
             "message":         f"Processed {len(raw_rows)} rows: {inserted} inserted, "
                                f"{max(0, len(valid)-inserted-errors)} duplicates, "
                                f"{len(flagged)} flagged",
@@ -223,13 +226,17 @@ def bulk_load():
         except Exception:
             pass
 
+        pred_result = _run_post_upload_predictions()
+
         return jsonify({
             "message":    "Bulk load complete",
             "batch_id":   batch_id,
+            "total_rows": len(records),
             "inserted":   total_inserted,
             "duplicates": duplicates,
             "flagged":    len(flagged),
             "errors":     total_errors,
+            "predictions_generated": pred_result.get("predictions_generated", 0),
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
