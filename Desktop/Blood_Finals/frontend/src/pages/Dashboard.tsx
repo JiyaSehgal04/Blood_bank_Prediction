@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import api from '../lib/api'
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  Cell, CartesianGrid, ReferenceLine, LabelList,
 } from 'recharts'
 
 interface Stats {
@@ -24,11 +25,27 @@ const BLOOD_COLORS: Record<string, string> = {
   'B Neg': '#6f7a6e', 'AB Neg': '#becabc',
 }
 
+const BLOOD_GROUP_ORDER = ['O Pos', 'B Pos', 'A Pos', 'AB Pos', 'O Neg', 'A Neg', 'B Neg', 'AB Neg']
+
+const STOCK_STATUS = {
+  critical: { label: 'Critical', color: '#ba1a1a' },
+  low: { label: 'Low', color: '#b25c00' },
+  watch: { label: 'Watch', color: '#008040' },
+  healthy: { label: 'Healthy', color: '#006d30' },
+}
+
+interface GroupDatum {
+  name: string
+  units: number
+  share: number
+  status: keyof typeof STOCK_STATUS
+}
+
 function KpiCard({ icon, label, value, sub, accent = false }: {
   icon: string; label: string; value: string | number; sub?: string; accent?: boolean
 }) {
   return (
-    <div className={`p-6 border rounded ${accent ? 'bg-[#1b1c15] border-transparent' : 'bg-white border-[#becabc]/30'}`}>
+    <div className={`p-6 border rounded ${accent ? 'bg-[#1b1c15] border-transparent' : 'soft-green-panel border-[#becabc]/30'}`}>
       <div className="flex items-center justify-between mb-4">
         <span className={`text-[10px] font-medium uppercase tracking-[0.2em] ${accent ? 'text-white/50' : 'text-[#3f493f]'}`}>
           {label}
@@ -45,16 +62,59 @@ function KpiCard({ icon, label, value, sub, accent = false }: {
   )
 }
 
+function getStockStatus(units: number, averageUnits: number): GroupDatum['status'] {
+  if (units === 0) return 'critical'
+  if (units < 3) return 'low'
+  if (averageUnits > 0 && units < averageUnits * 0.65) return 'watch'
+  return 'healthy'
+}
+
+function InventoryTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: GroupDatum }> }) {
+  if (!active || !payload?.length) return null
+
+  const item = payload[0].payload
+  const status = STOCK_STATUS[item.status]
+
+  return (
+    <div className="rounded bg-[#1b1c15] px-3 py-2 shadow-xl">
+      <div className="flex items-center gap-2">
+        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: status.color }} />
+        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/50">
+          {item.name}
+        </span>
+      </div>
+      <div className="mt-1 mono-data text-xl font-bold text-white">{item.units} units</div>
+      <div className="text-[11px] text-white/55">
+        {item.share.toFixed(1)}% of stock · {status.label}
+      </div>
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [lastUpdated, setLastUpdated] = useState<string>('')
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  useEffect(() => {
+  const fetchStats = () => {
     api.get('/dashboard/stats')
-      .then((r) => setStats(r.data))
+      .then((r) => {
+        setStats(r.data)
+        setError('')
+        setLastUpdated(new Date().toLocaleTimeString())
+      })
       .catch((e) => setError(e?.response?.data?.error ?? 'Failed to load dashboard'))
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    fetchStats()
+    intervalRef.current = setInterval(fetchStats, 30000)
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
   }, [])
 
   if (loading) return (
@@ -63,19 +123,32 @@ export default function Dashboard() {
     </div>
   )
 
-  if (error) return (
+  if (error && !stats) return (
     <div className="bg-[#ffdad6] border border-[#ba1a1a]/20 rounded p-6 text-[#93000a]">
       <span className="material-symbols-outlined mr-2">error</span>
-      {error} — make sure the Flask API is running on port 5000.
+      {error} — make sure the Flask API is running on port 5001.
     </div>
   )
 
-  const groupData = stats
-    ? Object.entries(stats.inventory.by_group).map(([k, v]) => ({ name: k, units: v }))
+  const totalInventory = stats?.inventory.total ?? 0
+  const averageUnits = totalInventory / BLOOD_GROUP_ORDER.length
+  const groupData: GroupDatum[] = stats
+    ? BLOOD_GROUP_ORDER
+        .map((name) => {
+          const units = stats.inventory.by_group[name] ?? 0
+          return {
+            name,
+            units,
+            share: totalInventory ? (units / totalInventory) * 100 : 0,
+            status: getStockStatus(units, averageUnits),
+          }
+        })
+        .sort((a, b) => a.units - b.units)
     : []
+  const criticalGroups = groupData.filter((g) => g.status === 'critical' || g.status === 'low').length
 
   return (
-    <div className="space-y-8">
+    <div className="green-stroke-bg space-y-8">
       {/* Header */}
       <div>
         <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.3em] mb-1">
@@ -84,6 +157,16 @@ export default function Dashboard() {
         <h1 className="font-headline text-3xl font-extrabold text-[#1b1c15] tracking-tight">
           Dashboard
         </h1>
+        {lastUpdated && (
+          <div className="text-[10px] font-mono text-[#6f7a6e] mt-1">
+            Last updated {lastUpdated}
+          </div>
+        )}
+        {error && stats && (
+          <div className="text-[10px] font-mono text-[#ba1a1a] mt-1">
+            Poll failed — showing cached data
+          </div>
+        )}
       </div>
 
       {/* KPI Grid */}
@@ -105,37 +188,87 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Bar chart */}
-        <div className="lg:col-span-2 bg-white border border-[#becabc]/30 rounded p-6">
-          <div className="mb-6">
-            <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.2em] mb-1">
-              Inventory
+        <div className="lg:col-span-2 soft-green-panel border border-[#becabc]/30 rounded p-6">
+          <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.2em] mb-1">
+                Inventory Risk
+              </div>
+              <h3 className="font-headline text-lg font-bold text-[#1b1c15]">
+                Blood Group Stock Balance
+              </h3>
+              <p className="mt-1 text-xs text-[#6f7a6e]">
+                Sorted from lowest to highest stock. Red and amber groups need replenishment first.
+              </p>
             </div>
-            <h3 className="font-headline text-lg font-bold text-[#1b1c15]">
-              Available Units by Blood Group
-            </h3>
+            <div className="grid grid-cols-2 gap-2 text-right">
+              <div className="rounded bg-[#f5f4e8] px-3 py-2">
+                <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#6f7a6e]">Avg/group</div>
+                <div className="mono-data text-lg font-bold text-[#1b1c15]">{averageUnits.toFixed(1)}</div>
+              </div>
+              <div className={`rounded px-3 py-2 ${criticalGroups > 0 ? 'bg-[#ffdad6]' : 'bg-[#e3f8df]'}`}>
+                <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#6f7a6e]">Risk groups</div>
+                <div className={`mono-data text-lg font-bold ${criticalGroups > 0 ? 'text-[#93000a]' : 'text-[#006d30]'}`}>
+                  {criticalGroups}
+                </div>
+              </div>
+            </div>
           </div>
           {groupData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={groupData} barSize={28}>
-                <XAxis dataKey="name"
-                  tick={{ fontSize: 10, fontFamily: 'JetBrains Mono', fill: '#3f493f' }}
-                  axisLine={false} tickLine={false} />
-                <YAxis
-                  tick={{ fontSize: 10, fontFamily: 'JetBrains Mono', fill: '#3f493f' }}
-                  axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    background: '#1b1c15', border: 'none', borderRadius: 4,
-                    fontSize: 12, fontFamily: 'JetBrains Mono', color: '#fff',
-                  }}
-                />
-                <Bar dataKey="units" radius={[2, 2, 0, 0]}>
-                  {groupData.map((entry) => (
-                    <Cell key={entry.name} fill={BLOOD_COLORS[entry.name] ?? '#006d30'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <>
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={groupData} layout="vertical" barSize={18} margin={{ top: 8, right: 36, bottom: 8, left: 4 }}>
+                  <CartesianGrid stroke="#e4e3d7" strokeDasharray="3 3" horizontal={false} />
+                  <XAxis
+                    type="number"
+                    allowDecimals={false}
+                    tick={{ fontSize: 10, fontFamily: 'JetBrains Mono', fill: '#6f7a6e' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    width={56}
+                    tick={{ fontSize: 10, fontFamily: 'JetBrains Mono', fill: '#3f493f' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  {averageUnits > 0 && (
+                    <ReferenceLine
+                      x={averageUnits}
+                      stroke="#1b1c15"
+                      strokeDasharray="4 4"
+                      label={{ value: 'avg', position: 'top', fill: '#6f7a6e', fontSize: 10, fontFamily: 'JetBrains Mono' }}
+                    />
+                  )}
+                  <Tooltip
+                    cursor={{ fill: '#f5f4e8' }}
+                    content={<InventoryTooltip />}
+                  />
+                  <Bar dataKey="units" radius={[0, 8, 8, 0]}>
+                    {groupData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.status === 'healthy' ? BLOOD_COLORS[entry.name] ?? '#006d30' : STOCK_STATUS[entry.status].color} />
+                    ))}
+                    <LabelList
+                      dataKey="units"
+                      position="right"
+                      className="mono-data"
+                      fill="#1b1c15"
+                      fontSize={11}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="mt-4 flex flex-wrap gap-3 border-t border-[#becabc]/30 pt-4">
+                {Object.entries(STOCK_STATUS).map(([key, item]) => (
+                  <div key={key} className="flex items-center gap-2 text-[11px] text-[#3f493f]">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="font-mono uppercase tracking-[0.14em]">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
             <div className="h-56 flex items-center justify-center text-[#6f7a6e] text-sm">
               No inventory data — run initial load or upload a file
@@ -149,7 +282,7 @@ export default function Dashboard() {
           <div className={`p-6 border rounded ${
             (stats?.alerts.critical ?? 0) > 0
               ? 'bg-[#ffdad6] border-[#ba1a1a]/10'
-              : 'bg-white border-[#becabc]/30'
+              : 'soft-green-panel border-[#becabc]/30'
           }`}>
             <div className="flex items-center gap-3 mb-3">
               <span className={`material-symbols-outlined ${(stats?.alerts.critical ?? 0) > 0 ? 'text-[#ba1a1a]' : 'text-[#006d30]'}`}>
@@ -166,7 +299,7 @@ export default function Dashboard() {
           </div>
 
           {/* Components breakdown */}
-          <div className="bg-white border border-[#becabc]/30 rounded p-6">
+          <div className="soft-green-panel border border-[#becabc]/30 rounded p-6">
             <h3 className="font-headline font-bold text-[#1b1c15] mb-4">By Component</h3>
             {stats && Object.keys(stats.inventory.by_component).length > 0 ? (
               <div className="space-y-3">
@@ -191,7 +324,7 @@ export default function Dashboard() {
           </div>
 
           {/* Data ingestion */}
-          <div className="bg-white border border-[#becabc]/30 rounded p-6">
+          <div className="soft-green-panel border border-[#becabc]/30 rounded p-6">
             <h3 className="font-headline font-bold text-[#1b1c15] mb-3">Data Ingestion</h3>
             <div className="space-y-2">
               {[

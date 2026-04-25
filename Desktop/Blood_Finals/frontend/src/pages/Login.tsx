@@ -25,7 +25,7 @@ export default function Login() {
       {/* Left: hero */}
       <div className="hidden lg:flex flex-col justify-between bg-[#1b1c15] p-16">
         <span className="text-2xl font-black text-white tracking-tighter font-headline">
-          HEMA_STRAT
+          SRM Global Hospitals
         </span>
         <div>
           <div className="flex items-center gap-2 mb-6">
@@ -56,12 +56,12 @@ export default function Login() {
       </div>
 
       {/* Right: form */}
-      <div className="flex flex-col items-center justify-center p-8 lg:p-16">
-        <div className="w-full max-w-sm">
+      <div className="green-stroke-bg flex flex-col items-center justify-center p-8 lg:p-16">
+        <div className="soft-green-panel w-full max-w-sm rounded border border-[#becabc]/35 p-8">
           {/* Mobile logo */}
           <div className="lg:hidden mb-10 text-center">
             <span className="text-2xl font-black text-[#1b1c15] tracking-tighter font-headline">
-              HEMA_STRAT
+              SRM Global Hospitals
             </span>
           </div>
 
@@ -119,7 +119,7 @@ export default function Login() {
           </form>
 
           <p className="text-center text-[10px] text-[#6f7a6e] mt-8 mono-data uppercase tracking-widest">
-            HEMA_STRAT v4.2.0 · Restricted Access
+            SRM Global Hospitals v4.2.0 · Restricted Access
           </p>
         </div>
       </div>

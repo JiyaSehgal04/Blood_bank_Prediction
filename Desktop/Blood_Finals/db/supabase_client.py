@@ -6,6 +6,7 @@ Supabase client singleton — reads credentials from .env
 import os
 import sys
 from pathlib import Path
+from typing import Optional
 
 # Load .env from project root (works regardless of where script is run from)
 try:
@@ -20,7 +21,7 @@ except ImportError:
     print("ERROR: supabase package not installed. Run: pip3 install supabase")
     sys.exit(1)
 
-_client: "Client | None" = None
+_client: "Optional[Client]" = None
 
 
 def get_client() -> "Client":

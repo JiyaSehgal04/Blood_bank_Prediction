@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 const navItems = [
   { path: '/dashboard',   icon: 'dashboard',       label: 'Dashboard'   },
   { path: '/inventory',   icon: 'inventory_2',     label: 'Inventory'   },
+  { path: '/manual-entry', icon: 'edit_note',       label: 'Manual Entry'},
   { path: '/allocate',    icon: 'hub',             label: 'Allocation'  },
   { path: '/donors',      icon: 'verified_user',   label: 'Donors'      },
   { path: '/predictions', icon: 'query_stats',     label: 'Predictions' },
@@ -25,9 +26,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside className="w-64 bg-[#1b1c15] flex flex-col sticky top-0 h-screen">
         {/* Logo */}
-        <div className="px-6 py-5 border-b border-white/10">
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="px-6 py-5 border-b border-white/10 text-left hover:bg-white/5 transition-colors"
+          aria-label="Go to landing page"
+        >
           <span className="text-xl font-black text-white tracking-tighter font-headline">
-            HEMA_STRAT
+            SRM Global Hospitals
           </span>
           <div className="flex items-center gap-1.5 mt-2">
             <span className="w-1.5 h-1.5 rounded-full bg-[#92f5a4] animate-pulse" />
@@ -35,7 +41,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               System Active
             </span>
           </div>
-        </div>
+        </button>
 
         {/* Nav */}
         <nav className="flex-1 py-4 overflow-y-auto">

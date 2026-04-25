@@ -134,7 +134,7 @@ export default function Predictions() {
   const models = [...new Set(predictions.map((p) => p.model_used))].join(', ')
 
   return (
-    <div className="space-y-10">
+    <div className="green-stroke-bg space-y-10">
 
       {/* ── Editorial header ── */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -195,7 +195,7 @@ export default function Predictions() {
       </div>
 
       {/* ── Full-width forecast chart ── */}
-      <section className="bg-white rounded border border-[#becabc]/20 overflow-hidden">
+      <section className="soft-green-panel rounded border border-[#becabc]/20 overflow-hidden">
         <div className="p-8 pb-4">
           <div className="flex justify-between items-start">
             <div>
@@ -276,7 +276,7 @@ export default function Predictions() {
                 return (
                   <div
                     key={card.blood_group}
-                    className="bg-[#f5f4e8] p-3 rounded border border-[#becabc]/10 hover:border-[#006d30]/30 transition-all flex flex-col"
+                    className="soft-green-panel p-3 rounded border border-[#becabc]/10 hover:border-[#006d30]/30 transition-all flex flex-col"
                   >
                     <div className="flex justify-between items-center mb-2">
                       <span className="font-headline text-xl font-extrabold text-[#1b1c15] tracking-tighter">
@@ -348,7 +348,7 @@ export default function Predictions() {
       {/* ── Bottom: replenishment table + model card ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        <div className="lg:col-span-2 bg-white rounded border border-[#becabc]/20 overflow-hidden">
+        <div className="lg:col-span-2 soft-green-panel rounded border border-[#becabc]/20 overflow-hidden">
           <div className="px-6 py-4 border-b border-[#becabc]/15 flex items-center justify-between">
             <h3 className="font-headline font-bold text-[#1b1c15]">Replenishment Recommendations</h3>
             <span className="mono-data text-xs text-[#6f7a6e]">

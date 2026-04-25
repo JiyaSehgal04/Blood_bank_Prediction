@@ -57,7 +57,7 @@ export default function Allocate() {
   }[p] ?? 'bg-[#efeee3] text-[#3f493f]')
 
   return (
-    <div className="space-y-8">
+    <div className="green-stroke-bg space-y-8">
       <div>
         <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.3em] mb-1">
           MODULE_02
@@ -69,7 +69,7 @@ export default function Allocate() {
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Allocation Form */}
-        <div className="lg:col-span-2 bg-white border border-[#becabc]/30 rounded p-6">
+        <div className="lg:col-span-2 soft-green-panel border border-[#becabc]/30 rounded p-6">
           <h3 className="font-headline text-lg font-bold text-[#1b1c15] mb-5">New Request</h3>
           <form onSubmit={handleAllocate} className="space-y-4">
             {[
@@ -168,7 +168,7 @@ export default function Allocate() {
         </div>
 
         {/* Recent allocations */}
-        <div className="lg:col-span-3 bg-white border border-[#becabc]/30 rounded overflow-hidden">
+        <div className="lg:col-span-3 soft-green-panel border border-[#becabc]/30 rounded overflow-hidden">
           <div className="px-6 py-4 border-b border-[#becabc]/20">
             <h3 className="font-headline font-bold text-[#1b1c15]">Recent Allocations</h3>
           </div>

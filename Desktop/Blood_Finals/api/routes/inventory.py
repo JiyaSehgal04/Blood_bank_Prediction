@@ -7,6 +7,7 @@ GET  /api/inventory  — list units (filters: blood_group, component, status)
 """
 
 from pathlib import Path
+from datetime import datetime
 
 from flask import Blueprint, request, jsonify
 
@@ -95,6 +96,10 @@ def add_single_unit():
 
     segment_no      = str(data.get("segment_no", "N/A")).strip() or "N/A"
     collection_time = normalize_time(data.get("collection_time", ""))
+    source          = str(data.get("source", "manual")).strip() or "manual"
+    upload_batch_id = str(data.get("upload_batch_id", "")).strip()
+    if not upload_batch_id:
+        upload_batch_id = f"manual_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
     exp_raw = data.get("expiry_date", "")
     try:
@@ -123,11 +128,18 @@ def add_single_unit():
         "vdrl":   str(data.get("vdrl",   "Neg")).strip(),
         "notes":  str(data.get("notes",  "")).strip(),
         "flag":   "",
+        "source": source,
+        "upload_batch_id": upload_batch_id,
     }
 
     client = get_client()
     try:
         result = client.table(TABLE).upsert(record, on_conflict="unit_id").execute()
+        try:
+            from services.summary_service import SummaryService
+            SummaryService().backfill_from_inventory()
+        except Exception:
+            pass
         return jsonify({"inserted": record, "unit_id": unit_id}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500

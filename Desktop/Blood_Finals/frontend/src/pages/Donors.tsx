@@ -49,7 +49,7 @@ export default function Donors() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="green-stroke-bg space-y-6">
       <div className="flex items-start justify-between">
         <div>
           <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.3em] mb-1">
@@ -70,7 +70,7 @@ export default function Donors() {
 
       {/* Add donor form */}
       {showForm && (
-        <div className="bg-white border border-[#becabc]/30 rounded p-6">
+        <div className="soft-green-panel border border-[#becabc]/30 rounded p-6">
           <h3 className="font-headline font-bold text-[#1b1c15] mb-4">Register New Donor</h3>
           <form onSubmit={handleAdd} className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             {[
@@ -139,7 +139,7 @@ export default function Donors() {
       </div>
 
       {/* Table */}
-      <div className="bg-white border border-[#becabc]/30 rounded overflow-hidden">
+      <div className="soft-green-panel border border-[#becabc]/30 rounded overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-[#f5f4e8] border-b border-[#becabc]/30">

@@ -164,7 +164,7 @@ export default function Upload() {
     : []
 
   return (
-    <div className="space-y-6">
+    <div className="green-stroke-bg space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.3em] mb-1">
@@ -189,7 +189,7 @@ export default function Upload() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] gap-6">
-        <div className="bg-white border border-[#becabc]/40 rounded overflow-hidden">
+        <div className="soft-green-panel border border-[#becabc]/40 rounded overflow-hidden">
           <div className="px-6 py-5 border-b border-[#becabc]/25 flex items-center justify-between gap-4">
             <div>
               <h3 className="font-headline font-bold text-[#1b1c15]">Excel to Database</h3>
@@ -318,7 +318,7 @@ export default function Upload() {
         </div>
 
         <div className="space-y-4">
-          <div className="bg-white border border-[#becabc]/40 rounded p-5">
+          <div className="soft-green-panel border border-[#becabc]/40 rounded p-5">
             <h3 className="font-headline font-bold text-[#1b1c15] mb-4">Pipeline</h3>
             <div className="space-y-3">
               {[
@@ -342,7 +342,7 @@ export default function Upload() {
             </div>
           </div>
 
-          <div className="bg-white border border-[#becabc]/40 rounded p-5">
+          <div className="soft-green-panel border border-[#becabc]/40 rounded p-5">
             <h3 className="font-headline font-bold text-[#1b1c15] mb-3">System Info</h3>
             <div className="space-y-2 text-xs">
               {([
@@ -361,7 +361,7 @@ export default function Upload() {
         </div>
       </div>
 
-      <div className="bg-white border border-[#becabc]/40 rounded overflow-hidden">
+      <div className="soft-green-panel border border-[#becabc]/40 rounded overflow-hidden">
         <div className="px-4 py-3 border-b border-[#becabc]/20 flex items-center justify-between">
           <h3 className="font-headline font-bold text-[#1b1c15]">Upload History</h3>
           <span className="mono-data text-xs text-[#6f7a6e]">{history.length} batches</span>

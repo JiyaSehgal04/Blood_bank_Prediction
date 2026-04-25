@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sunrise – Discover Hospitals</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #c8c8c8;
+    --surface: #d2d2d2;
+    --card: #bebebe;
+    --dark: #1a1a1a;
+    --white: #ffffff;
+    --text-light: rgba(255,255,255,0.88);
+    --text-muted: rgba(255,255,255,0.6);
+    --radius-pill: 999px;
+    --radius-lg: 20px;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    color: var(--white);
+    overflow-x: hidden;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    padding: 18px 32px;
+    gap: 10px;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 8px;
+  }
+
+  .nav-pill {
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: var(--radius-pill);
+    padding: 8px 20px;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--white);
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+  .nav-pill:hover { background: rgba(255,255,255,0.2); }
+
+  /* Brand center */
+  .brand {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--dark);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    padding: 12px 28px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .brand-icon {
+    font-size: 16px;
+    color: var(--white);
+  }
+
+  .brand-name {
+    font-family: 'Instrument Serif', serif;
+    font-size: 20px;
+    font-weight: 400;
+    color: var(--white);
+    letter-spacing: 0.02em;
+  }
+
+  /* Right side nav */
+  .nav-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .search-bar {
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: var(--radius-pill);
+    padding: 8px 14px 8px 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .search-bar input {
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    width: 130px;
+  }
+  .search-bar input::placeholder { color: rgba(255,255,255,0.5); }
+
+  .search-bar svg { color: rgba(255,255,255,0.6); flex-shrink: 0; }
+
+  .btn-book {
+    background: var(--dark);
+    color: var(--white);
+    border: none;
+    border-radius: var(--radius-pill);
+    padding: 9px 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  .btn-book .arrow-circle {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--white);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .btn-book .arrow-circle svg { color: var(--dark); }
+
+  .btn-menu {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--dark);
+    border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .btn-menu svg { color: var(--white); }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 120px 32px 40px;
+    position: relative;
+  }
+
+  /* Left badge */
+  .hero-badge-left {
+    position: absolute;
+    left: 40px;
+    top: 50%;
+    transform: translateY(-60%);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .triple-rings {
+    display: flex;
+    gap: -8px;
+  }
+
+  .ring {
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.55);
+    margin-left: -12px;
+    background: transparent;
+  }
+  .ring:first-child { margin-left: 0; }
+
+  .hero-badge-text {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-light);
+    max-width: 180px;
+    text-align: left;
+  }
+
+  /* Hero center */
+  .hero-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(36px, 5vw, 68px);
+    font-weight: 400;
+    line-height: 1.1;
+    color: var(--white);
+    max-width: 820px;
+    margin-bottom: 22px;
+    letter-spacing: -0.01em;
+  }
+
+  .hero-sub {
+    font-size: 15px;
+    color: var(--text-muted);
+    max-width: 440px;
+    line-height: 1.6;
+    margin-bottom: 42px;
+  }
+
+  .btn-find {
+    background: var(--dark);
+    color: var(--white);
+    border: none;
+    border-radius: var(--radius-pill);
+    padding: 16px 24px 16px 36px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 17px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .btn-find:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,0,0,0.25); }
+
+  .btn-find .arrow-circle {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--white);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .btn-find .arrow-circle svg { color: var(--dark); }
+
+  /* ── RIGHT SOCIAL / APP ── */
+  .right-panel {
+    position: fixed;
+    right: 32px;
+    bottom: 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+  }
+
+  .social-pill {
+    background: rgba(255,255,255,0.85);
+    color: var(--dark);
+    border-radius: var(--radius-pill);
+    padding: 7px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    backdrop-filter: blur(6px);
+  }
+  .social-pill:hover { background: var(--white); }
+
+  .app-bar {
+    background: rgba(255,255,255,0.85);
+    border-radius: var(--radius-pill);
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    backdrop-filter: blur(6px);
+    margin-top: 8px;
+  }
+
+  .app-bar-label {
+    font-size: 13px;
+    color: var(--dark);
+    font-weight: 500;
+  }
+
+  .app-icon {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--dark);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .app-icon svg { color: var(--white); width: 14px; height: 14px; }
+
+  /* ── BOTTOM LEFT CLIENT ── */
+  .clients-row {
+    position: fixed;
+    bottom: 36px;
+    left: 40px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .client-bubble {
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: var(--radius-pill);
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    backdrop-filter: blur(4px);
+  }
+
+  .client-dot {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--card);
+    border: 2px solid rgba(255,255,255,0.4);
+  }
+
+  .client-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--white);
+    text-transform: uppercase;
+  }
+
+  .avatar-stack {
+    display: flex;
+    gap: 0;
+  }
+
+  .avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--card);
+    border: 2px solid var(--bg);
+    margin-left: -10px;
+  }
+  .avatar:first-child { margin-left: 0; }
+
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-links">
+    <button class="nav-pill">About Us</button>
+    <button class="nav-pill">Offer</button>
+    <button class="nav-pill">facilites</button>
+    <button class="nav-pill">Membership</button>
+  </div>
+
+  <!-- Brand center tab -->
+  <div class="brand">
+    <span class="brand-icon">✦</span>
+    <span class="brand-name">Sunrise</span>
+  </div>
+
+  <!-- Right controls -->
+  <div class="nav-right">
+    <div class="search-bar">
+      <input type="text" placeholder="Search here...">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+    </div>
+    <button class="btn-book">
+      Book Now
+      <div class="arrow-circle">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/>
+        </svg>
+      </div>
+    </button>
+    <button class="btn-menu">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="16" x2="20" y2="16"/>
+      </svg>
+    </button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+
+  <!-- Left badge -->
+  <div class="hero-badge-left">
+    <div class="triple-rings">
+      <div class="ring"></div>
+      <div class="ring"></div>
+      <div class="ring"></div>
+    </div>
+    <p class="hero-badge-text">We're committed to delivering a high-quality experience in a welcoming and supportive atmosphere.</p>
+  </div>
+
+  <!-- Center content -->
+  <h1 class="hero-title">Discover Hospitals, Access Care,<br>&amp; Find Trusted Services Nearby</h1>
+  <p class="hero-sub">Rediscover the beauty in life's simplest pleasures, and let every moment here remind you of the joy of true relaxation.</p>
+
+  <button class="btn-find">
+    Find Hospital
+    <div class="arrow-circle">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/>
+      </svg>
+    </div>
+  </button>
+
+</section>
+
+<!-- RIGHT SOCIAL PANEL -->
+<div class="right-panel">
+  <div class="social-pill">instagram</div>
+  <div class="social-pill">Twitter</div>
+  <div class="social-pill">Facebook</div>
+
+  <div class="app-bar">
+    <span class="app-bar-label">Get the app</span>
+    <!-- Apple -->
+    <div class="app-icon">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+    </div>
+    <!-- Play -->
+    <div class="app-icon">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20.5v-17c0-.83.94-1.3 1.6-.8l14 8.5c.6.37.6 1.23 0 1.6l-14 8.5c-.66.5-1.6.03-1.6-.8z"/></svg>
+    </div>
+    <!-- Download -->
+    <div class="app-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v13M7 12l5 5 5-5M3 21h18"/></svg>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM LEFT CLIENTS -->
+<div class="clients-row">
+  <div class="client-bubble">
+    <div class="client-dot"></div>
+    <span class="client-label">25K+ Satisfied Client With Us</span>
+  </div>
+  <div class="avatar-stack">
+    <div class="avatar"></div>
+    <div class="avatar"></div>
+    <div class="avatar"></div>
+    <div class="avatar"></div>
+    <div class="avatar"></div>
+  </div>
+</div>
+
+</body>
+</html>
