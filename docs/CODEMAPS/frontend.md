@@ -53,9 +53,9 @@ App
 
 ## Auth Flow
 1. `POST /api/auth/login` with credentials
-2. Token stored in `sessionStorage('auth_token')`
+2. Signed token stored in `sessionStorage('auth_token')`
 3. Axios interceptor attaches `Authorization: Bearer <token>` to all requests
-4. Fallback: if API unreachable, accepts `admin/bloodbank2026` locally
+4. Axios response interceptor clears the token and redirects to `/login` on protected API `401`
 
 ## UI Theme
 Dark sidebar (`#1b1c15`) with active state green (`#006d30`). Light content area (`#fbfaee`).
