@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import api from "../lib/api";
+import { DATA_CACHE_INVALIDATED_EVENT } from "../lib/sessionCache";
 import {
   BarChart,
   Bar,
@@ -207,6 +208,18 @@ export default function Dashboard() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
+  }, []);
+
+  useEffect(() => {
+    const handleInvalidation = () => {
+      setStats(null);
+      setLastUpdated("");
+      setLoading(true);
+      fetchStats();
+    };
+    window.addEventListener(DATA_CACHE_INVALIDATED_EVENT, handleInvalidation);
+    return () =>
+      window.removeEventListener(DATA_CACHE_INVALIDATED_EVENT, handleInvalidation);
   }, []);
 
   if (loading)

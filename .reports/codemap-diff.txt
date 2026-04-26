@@ -1,0 +1,42 @@
+Codemap Generation Report — 2026-04-26
+========================================
+
+Project: Blood Bank Prediction System
+Branch: ritam-main
+Files scanned: 45 source files (excluding node_modules, .git, __pycache__)
+
+## Previous Codemaps
+None — this is the first codemap generation.
+
+## Files Added/Removed
+All files are new to the CODEMAPS directory:
+  + docs/CODEMAPS/architecture.md
+  + docs/CODEMAPS/backend.md
+  + docs/CODEMAPS/frontend.md
+  + docs/CODEMAPS/data.md
+  + docs/CODEMAPS/dependencies.md
+
+## Architecture Summary
+- Type: Monolithic Flask API + React SPA + ML pipeline
+- Backend: Python/Flask with 8 route blueprints, 5 service classes
+- Frontend: React 19 + Vite 8 + Tailwind 4 + Recharts 3
+- Database: Supabase (hosted PostgreSQL) with 9 tables
+- ML: SES → XGBoost ensemble + Isolation Forest, cold-start strategy
+- Data structure: Multi-list (8 FIFO linked lists + 1 sorted expiry list)
+
+## New Dependencies Detected
+- Groq API (llama-3.3-70b) for AI prediction summaries
+- numbers-parser for Apple Numbers file ingestion
+- All other deps match requirements.txt / package.json
+
+## Architecture Notes
+- Auth is hardcoded (admin:bloodbank2026) — not production-grade
+- In-memory session store (_SESSIONS dict) — lost on server restart
+- Frontend has local auth fallback when API is unreachable
+- ML models serialized as .joblib in ml/models/ (not in git)
+- All routes share Supabase client singleton via db/supabase_client.py
+- No caching layer — all reads hit Supabase directly
+- Allocation uses compatibility matrix for blood type fallback
+
+## Staleness Warnings
+None — initial generation.

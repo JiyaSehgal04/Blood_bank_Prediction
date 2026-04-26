@@ -64,14 +64,14 @@ class MLPredictor:
 
     # ── generate forecasts ────────────────────────────────────────────────────
 
-    def predict_all(self) -> dict:
+    def predict_all(self, store: bool = True) -> dict:
         """Generate demand forecasts for all components + blood groups."""
         all_preds = {}
         for comp in COMPONENTS:
-            all_preds[comp] = self.predict_component(comp)
+            all_preds[comp] = self.predict_component(comp, store=store)
         return all_preds
 
-    def predict_component(self, component: str) -> list:
+    def predict_component(self, component: str, store: bool = True) -> list:
         comp_key = component.replace("/", "_")
         df       = self.pipe.build_features(component)
 
@@ -115,27 +115,28 @@ class MLPredictor:
                 "prediction_date": date.today().isoformat(),
             })
 
-        # Store in DB. Older deployed schemas may not yet have the unique
-        # constraint required by PostgREST upsert, so fall back to replace.
-        try:
-            self.client.table("predictions").upsert(
-                preds,
-                on_conflict="prediction_date,blood_group,component"
-            ).execute()
-        except Exception as e:
+        if store:
+            # Store in DB. Older deployed schemas may not yet have the unique
+            # constraint required by PostgREST upsert, so fall back to replace.
             try:
-                self.client.table("predictions").delete() \
-                    .eq("prediction_date", date.today().isoformat()) \
-                    .eq("component", component) \
-                    .execute()
-                self.client.table("predictions").insert(preds).execute()
-            except Exception as fallback_error:
-                message = (
-                    f"prediction store failed for {component}: {e}; "
-                    f"fallback insert failed: {fallback_error}"
-                )
-                self.store_errors.append(message)
-                print(f"  Warning: {message}")
+                self.client.table("predictions").upsert(
+                    preds,
+                    on_conflict="prediction_date,blood_group,component"
+                ).execute()
+            except Exception as e:
+                try:
+                    self.client.table("predictions").delete() \
+                        .eq("prediction_date", date.today().isoformat()) \
+                        .eq("component", component) \
+                        .execute()
+                    self.client.table("predictions").insert(preds).execute()
+                except Exception as fallback_error:
+                    message = (
+                        f"prediction store failed for {component}: {e}; "
+                        f"fallback insert failed: {fallback_error}"
+                    )
+                    self.store_errors.append(message)
+                    print(f"  Warning: {message}")
 
         return preds
 
@@ -172,22 +173,22 @@ class MLPredictor:
 
     # ── ML alerts ─────────────────────────────────────────────────────────────
 
-    def run_ml_alerts(self) -> dict:
+    def run_ml_alerts(self, predictions: dict | None = None) -> dict:
         """Compare forecasts vs live stock; raise shortage/surplus/trend alerts."""
         stock    = self.pipe.fetch_stock_levels()
         expiring = self.pipe.fetch_expiry_counts()
-        today    = date.today()
         alerts   = {"shortage": [], "surplus": [], "trend_shift": []}
 
         for comp in COMPONENTS:
-            preds = self.predict_component(comp)
+            preds = predictions.get(comp) if predictions is not None else None
+            if preds is None:
+                preds = self.predict_component(comp, store=False)
             df    = self.pipe.build_features(comp)
 
             for p in preds:
                 bg       = p["blood_group"]
                 forecast = p["predicted_demand"]
-                curr     = stock.get(bg, 0)
-                exp_7d   = expiring.get(bg, 0)
+                curr     = stock.get((bg, comp), 0)
 
                 # Shortage: forecast > current stock
                 if forecast > curr:
@@ -237,11 +238,11 @@ class MLPredictor:
         plan     = []
 
         for comp in COMPONENTS:
-            preds = self.predict_component(comp)
+            preds = self.predict_component(comp, store=False)
             for p in preds:
                 bg       = p["blood_group"]
-                curr     = stock.get(bg, 0)
-                exp_7d   = expiring.get(bg, 0)
+                curr     = stock.get((bg, comp), 0)
+                exp_7d   = expiring.get((bg, comp), 0)
                 demand_7d= round(p["predicted_demand"] * 7)
                 order    = max(0, demand_7d + SAFETY_STOCK - curr + exp_7d)
 

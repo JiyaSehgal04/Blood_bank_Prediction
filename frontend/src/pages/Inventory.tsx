@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import api from '../lib/api'
-import { readCache, writeCache } from '../lib/sessionCache'
+import { DATA_CACHE_INVALIDATED_EVENT, readCache, writeCache } from '../lib/sessionCache'
 
 interface Unit {
   unit_id: string
@@ -25,9 +25,10 @@ export default function Inventory() {
   const [component, setComponent] = useState('')
   const [status, setStatus] = useState('available')
   const [lastUpdated, setLastUpdated] = useState<string>('')
+  const [nowMs, setNowMs] = useState(() => Date.now())
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const load = () => {
+  const load = useCallback(() => {
     const params = new URLSearchParams()
     if (bloodGroup) params.set('blood_group', bloodGroup)
     if (component) params.set('component', component)
@@ -46,6 +47,7 @@ export default function Inventory() {
       .then((r) => {
         const nextUnits = r.data.units ?? []
         const updatedAt = new Date().toLocaleTimeString()
+        setNowMs(Date.now())
         setUnits(nextUnits)
         setLastUpdated(updatedAt)
         writeCache(cacheKey, nextUnits)
@@ -53,16 +55,29 @@ export default function Inventory() {
       })
       .catch(console.error)
       .finally(() => setLoading(false))
-  }
+  }, [bloodGroup, component, status])
 
-  useEffect(load, [bloodGroup, component, status])
+  useEffect(() => {
+    void Promise.resolve().then(load)
+  }, [load])
 
   useEffect(() => {
     intervalRef.current = setInterval(load, 30000)
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
-  }, [bloodGroup, component, status])
+  }, [load])
+
+  useEffect(() => {
+    const handleInvalidation = () => {
+      setUnits([])
+      setLastUpdated('')
+      setLoading(true)
+      load()
+    }
+    window.addEventListener(DATA_CACHE_INVALIDATED_EVENT, handleInvalidation)
+    return () => window.removeEventListener(DATA_CACHE_INVALIDATED_EVENT, handleInvalidation)
+  }, [load])
 
   const statusBadge = (s: string) => {
     const map: Record<string, string> = {
@@ -73,8 +88,8 @@ export default function Inventory() {
     return map[s] ?? 'bg-[#efeee3] text-[#3f493f]'
   }
 
-  const expiryWarning = (expiry: string) => {
-    const days = Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000)
+  const expiryWarning = (expiry: string, currentTimeMs: number) => {
+    const days = Math.ceil((new Date(expiry).getTime() - currentTimeMs) / 86400000)
     if (days < 0) return 'text-[#ba1a1a]'
     if (days <= 3) return 'text-[#ba1a1a] font-bold'
     if (days <= 7) return 'text-[#006d30] font-medium'
@@ -158,7 +173,7 @@ export default function Inventory() {
                       {u.status}
                     </span>
                   </td>
-                  <td className={`px-3 py-2 mono-data text-[11px] whitespace-nowrap ${expiryWarning(u.expiry_date)}`}>
+                  <td className={`px-3 py-2 mono-data text-[11px] whitespace-nowrap ${expiryWarning(u.expiry_date, nowMs)}`}>
                     {u.expiry_date}
                   </td>
                   <td className="px-3 py-2 mono-data text-[11px] text-[#3f493f] whitespace-nowrap">{u.quantity_ml}</td>

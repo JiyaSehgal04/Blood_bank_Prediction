@@ -83,35 +83,35 @@ class FeaturePipeline:
         return df
 
     def fetch_expiry_counts(self) -> dict:
-        """Return {blood_group: count of units expiring within 7 days}."""
+        """Return {(blood_group, component): count of units expiring within 7 days}."""
         cutoff = (date.today() + timedelta(days=7)).isoformat()
         rows = self._fetch_query(
             lambda: (
                 self._get_client().table("blood_inventory")
-                .select("blood_group")
+                .select("blood_group,component")
                 .eq("status", "available")
                 .lte("expiry_date", cutoff)
             )
         )
         counts = {}
         for r in rows:
-            bg = r["blood_group"]
-            counts[bg] = counts.get(bg, 0) + 1
+            key = (r["blood_group"], r["component"])
+            counts[key] = counts.get(key, 0) + 1
         return counts
 
     def fetch_stock_levels(self) -> dict:
-        """Return {blood_group: current available count}."""
+        """Return {(blood_group, component): current available count}."""
         rows = self._fetch_query(
             lambda: (
                 self._get_client().table("blood_inventory")
-                .select("blood_group")
+                .select("blood_group,component")
                 .eq("status", "available")
             )
         )
         counts = {}
         for r in rows:
-            bg = r["blood_group"]
-            counts[bg] = counts.get(bg, 0) + 1
+            key = (r["blood_group"], r["component"])
+            counts[key] = counts.get(key, 0) + 1
         return counts
 
     # ── build feature matrix ──────────────────────────────────────────────────
@@ -194,10 +194,10 @@ class FeaturePipeline:
         expiry_counts = expiry_counts if expiry_counts is not None else self.fetch_expiry_counts()
         stock_levels = stock_levels if stock_levels is not None else self.fetch_stock_levels()
         long["expiring_within_7d"]   = long["blood_group"].map(
-            lambda bg: expiry_counts.get(bg, 0)
+            lambda bg: expiry_counts.get((bg, component), 0)
         )
         long["current_stock_level"]  = long["blood_group"].map(
-            lambda bg: stock_levels.get(bg, 0)
+            lambda bg: stock_levels.get((bg, component), 0)
         )
 
         # ── population demand rate ────────────────────────────────────────────
@@ -269,8 +269,14 @@ class FeaturePipeline:
             available["expiry_date"].notna()
             & (available["expiry_date"] <= today + pd.Timedelta(days=7))
         ]
-        stock_levels = available["blood_group"].value_counts().to_dict()
-        expiry_counts = expiring["blood_group"].value_counts().to_dict()
+        stock_levels = (
+            available.groupby(["blood_group", "component"]).size().to_dict()
+            if not available.empty else {}
+        )
+        expiry_counts = (
+            expiring.groupby(["blood_group", "component"]).size().to_dict()
+            if not expiring.empty else {}
+        )
 
         return self._build_features_from_summary(
             summary,

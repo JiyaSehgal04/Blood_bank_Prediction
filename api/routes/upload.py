@@ -104,7 +104,7 @@ def _run_post_upload_predictions() -> dict:
         from ml.scripts.predict import MLPredictor
         predictor = MLPredictor()
         all_preds = predictor.predict_all()
-        predictor.run_ml_alerts()
+        predictor.run_ml_alerts(predictions=all_preds)
         total = sum(len(p) for p in all_preds.values())
         return {
             "predictions_generated": total,

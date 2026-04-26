@@ -1,16 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import api from '../lib/api'
-import { readCache, writeCache } from '../lib/sessionCache'
+import { DATA_CACHE_INVALIDATED_EVENT, readCache, writeCache } from '../lib/sessionCache'
 
 interface Allocation {
   id: string
+  request_id: string
   blood_group: string
   component: string
   units_requested: number
-  units_allocated: number
-  patient_name: string
+  units_fulfilled: number
   priority: string
   status: string
+  notes?: string
   created_at: string
 }
 
@@ -27,30 +28,56 @@ export default function Allocate() {
   ))
   const [form, setForm] = useState({
     blood_group: 'O Pos', component: 'WB/PRC',
-    units_requested: 1, patient_name: '', hospital: '',
-    priority: 'routine', notes: ''
+    units_needed: 1, request_id: '',
+    priority: 'routine'
   })
   const [result, setResult] = useState<{ status: string; message: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const loadAllocations = () => {
-    if (allocations.length === 0) setLoading(true)
+  const loadAllocations = useCallback((blocking = allocations.length === 0) => {
+    if (blocking) setLoading(true)
     api.get('/allocations').then((r) => {
       const nextAllocations = r.data.allocations ?? []
       setAllocations(nextAllocations)
       writeCache(ALLOCATIONS_CACHE_KEY, nextAllocations)
     })
       .catch(console.error).finally(() => setLoading(false))
-  }
+  }, [allocations.length])
 
-  useEffect(loadAllocations, [])
+  useEffect(() => {
+    loadAllocations()
+  }, [loadAllocations])
+
+  useEffect(() => {
+    intervalRef.current = setInterval(() => loadAllocations(false), 30000)
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [loadAllocations])
+
+  useEffect(() => {
+    const handleInvalidation = () => {
+      setAllocations([])
+      loadAllocations(true)
+    }
+    window.addEventListener(DATA_CACHE_INVALIDATED_EVENT, handleInvalidation)
+    return () => window.removeEventListener(DATA_CACHE_INVALIDATED_EVENT, handleInvalidation)
+  }, [loadAllocations])
 
   const handleAllocate = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
     setResult(null)
     try {
-      const r = await api.post('/allocate', form)
+      const payload = {
+        blood_group: form.blood_group,
+        component: form.component,
+        units_needed: form.units_needed,
+        priority: form.priority,
+        request_id: form.request_id || undefined,
+      }
+      const r = await api.post('/allocate', payload)
       setResult({ status: r.data.status, message: r.data.message ?? 'Allocation processed' })
       loadAllocations()
     } catch (err: unknown) {
@@ -61,11 +88,11 @@ export default function Allocate() {
     }
   }
 
-  const priorityBadge = (p: string) => ({
-    emergency: 'bg-[#ffdad6] text-[#93000a]',
-    urgent:    'bg-[#92f5a4]/40 text-[#005323]',
-    routine:   'bg-[#e4e3d7] text-[#585756]',
-  }[p] ?? 'bg-[#efeee3] text-[#3f493f]')
+  const statusBadge = (s: string) => ({
+    fulfilled: 'bg-[#92f5a4]/40 text-[#005323]',
+    partial:   'bg-[#e4e3d7] text-[#585756]',
+    unmet:     'bg-[#ffdad6] text-[#93000a]',
+  }[s] ?? 'bg-[#efeee3] text-[#3f493f]')
 
   return (
     <div className="green-stroke-bg space-y-8">
@@ -84,8 +111,7 @@ export default function Allocate() {
           <h3 className="font-headline text-lg font-bold text-[#1b1c15] mb-5">New Request</h3>
           <form onSubmit={handleAllocate} className="space-y-4">
             {[
-              { label: 'Patient Name', key: 'patient_name', type: 'text', placeholder: 'Full name' },
-              { label: 'Hospital / Ward', key: 'hospital', type: 'text', placeholder: 'Hospital name' },
+              { label: 'Request ID', key: 'request_id', type: 'text', placeholder: 'Optional external request ID' },
             ].map(({ label, key, type, placeholder }) => (
               <div key={key}>
                 <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">{label}</label>
@@ -94,7 +120,6 @@ export default function Allocate() {
                   value={(form as Record<string, string | number>)[key] as string}
                   onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                   placeholder={placeholder}
-                  required
                   className="w-full px-3 py-2 bg-[#f5f4e8] border border-[#becabc]/40 text-sm text-[#1b1c15] rounded outline-none focus:border-[#006d30] transition-colors"
                 />
               </div>
@@ -128,8 +153,8 @@ export default function Allocate() {
                 <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">Units</label>
                 <input
                   type="number" min={1} max={20}
-                  value={form.units_requested}
-                  onChange={(e) => setForm({ ...form, units_requested: +e.target.value })}
+                  value={form.units_needed}
+                  onChange={(e) => setForm({ ...form, units_needed: +e.target.value })}
                   className="w-full px-3 py-2 bg-[#f5f4e8] border border-[#becabc]/40 text-sm text-[#1b1c15] rounded outline-none focus:border-[#006d30] transition-colors"
                 />
               </div>
@@ -147,22 +172,12 @@ export default function Allocate() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">Notes</label>
-              <textarea
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                rows={2}
-                className="w-full px-3 py-2 bg-[#f5f4e8] border border-[#becabc]/40 text-sm text-[#1b1c15] rounded outline-none focus:border-[#006d30] transition-colors resize-none"
-              />
-            </div>
-
             {result && (
               <div className={`px-3 py-2 rounded text-xs flex items-center gap-2 ${
-                result.status === 'allocated' ? 'bg-[#92f5a4]/30 text-[#005323]' : 'bg-[#ffdad6] text-[#93000a]'
+                result.status === 'fulfilled' ? 'bg-[#92f5a4]/30 text-[#005323]' : 'bg-[#ffdad6] text-[#93000a]'
               }`}>
                 <span className="material-symbols-outlined text-[16px]">
-                  {result.status === 'allocated' ? 'check_circle' : 'error'}
+                  {result.status === 'fulfilled' ? 'check_circle' : 'error'}
                 </span>
                 {result.message}
               </div>
@@ -186,7 +201,7 @@ export default function Allocate() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-[#f5f4e8]">
-                {['Patient', 'Group', 'Component', 'Units', 'Priority', 'Date'].map((h) => (
+                {['Request', 'Group', 'Component', 'Units', 'Status', 'Date'].map((h) => (
                   <th key={h} className="px-4 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-[#3f493f]">{h}</th>
                 ))}
               </tr>
@@ -199,13 +214,13 @@ export default function Allocate() {
               ) : (
                 allocations.slice(0, 20).map((a, i) => (
                   <tr key={a.id ?? i} className={`border-b border-[#becabc]/10 ${i % 2 === 0 ? 'bg-white' : 'bg-[#fbfaee]'}`}>
-                    <td className="px-4 py-2 text-[#1b1c15] font-medium">{a.patient_name || '—'}</td>
+                    <td className="px-4 py-2 text-[#1b1c15] font-medium">{a.request_id || '—'}</td>
                     <td className="px-4 py-2 mono-data text-xs">{a.blood_group}</td>
                     <td className="px-4 py-2 mono-data text-xs text-[#3f493f]">{a.component}</td>
-                    <td className="px-4 py-2 mono-data text-xs">{a.units_allocated}/{a.units_requested}</td>
+                    <td className="px-4 py-2 mono-data text-xs">{a.units_fulfilled}/{a.units_requested}</td>
                     <td className="px-4 py-2">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${priorityBadge(a.priority)}`}>
-                        {a.priority}
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusBadge(a.status)}`}>
+                        {a.status}
                       </span>
                     </td>
                     <td className="px-4 py-2 mono-data text-xs text-[#6f7a6e]">

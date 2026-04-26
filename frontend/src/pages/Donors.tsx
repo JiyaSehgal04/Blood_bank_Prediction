@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import api from '../lib/api'
-import { readCache, writeCache } from '../lib/sessionCache'
+import { DATA_CACHE_INVALIDATED_EVENT, readCache, writeCache } from '../lib/sessionCache'
 
 interface Donor {
   id: number
@@ -26,17 +26,18 @@ export default function Donors() {
     name: '', blood_group: 'O Pos', email: '', phone: '', date_of_birth: '', gender: 'M'
   })
   const [saving, setSaving] = useState(false)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const GROUPS = ['O Pos', 'A Pos', 'B Pos', 'AB Pos', 'O Neg', 'A Neg', 'B Neg', 'AB Neg']
 
-  const load = () => {
+  const load = useCallback((useCached = true, blocking = true) => {
     const params = search ? `?search=${encodeURIComponent(search)}` : ''
     const cacheKey = `blood_bank_donors_cache:${params}`
-    const cached = readCache<Donor[]>(cacheKey, [])
+    const cached = useCached ? readCache<Donor[]>(cacheKey, []) : []
     if (cached.length > 0) {
       setDonors(cached)
       setLoading(false)
-    } else {
+    } else if (blocking) {
       setLoading(true)
     }
     api.get(`/donors${params}`).then((r) => {
@@ -45,9 +46,27 @@ export default function Donors() {
       writeCache(cacheKey, nextDonors)
     })
       .catch(console.error).finally(() => setLoading(false))
-  }
+  }, [search])
 
-  useEffect(load, [search])
+  useEffect(() => {
+    load()
+  }, [load])
+
+  useEffect(() => {
+    intervalRef.current = setInterval(() => load(false, false), 30000)
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [load])
+
+  useEffect(() => {
+    const handleInvalidation = () => {
+      setDonors([])
+      load(false, true)
+    }
+    window.addEventListener(DATA_CACHE_INVALIDATED_EVENT, handleInvalidation)
+    return () => window.removeEventListener(DATA_CACHE_INVALIDATED_EVENT, handleInvalidation)
+  }, [load])
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()

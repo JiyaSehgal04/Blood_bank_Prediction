@@ -23,7 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from flask import Flask
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 from api.routes.inventory   import inventory_bp
@@ -33,12 +33,30 @@ from api.routes.alerts      import alerts_bp
 from api.routes.dashboard   import dashboard_bp
 from api.routes.predictions import predictions_bp
 from api.routes.upload      import upload_bp
-from api.routes.auth        import auth_bp
+from api.routes.auth        import auth_bp, current_user
+
+
+PUBLIC_ROUTES = {
+    "/health",
+    "/api/routes",
+    "/api/auth/login",
+    "/api/auth/logout",
+}
 
 
 def create_app() -> Flask:
     app = Flask(__name__)
     CORS(app, origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"])
+
+    @app.before_request
+    def enforce_api_auth():
+        if request.method == "OPTIONS":
+            return None
+        if request.path in PUBLIC_ROUTES:
+            return None
+        if request.path.startswith("/api/") and not current_user():
+            return jsonify({"error": "Unauthorized"}), 401
+        return None
 
     for bp in (inventory_bp, donors_bp, allocate_bp, alerts_bp,
                dashboard_bp, predictions_bp, upload_bp, auth_bp):

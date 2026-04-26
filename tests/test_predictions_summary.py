@@ -15,9 +15,17 @@ def client():
         yield c
 
 
+def auth_header(client):
+    res = client.post(
+        "/api/auth/login",
+        json={"username": "admin", "password": "bloodbank2026"},
+    )
+    return {"Authorization": f"Bearer {res.get_json()['token']}"}
+
+
 def test_summary_returns_503_when_no_api_key(client):
     with patch.dict("os.environ", {"GROQ_API_KEY": ""}):
-        res = client.get("/api/predictions/summary")
+        res = client.get("/api/predictions/summary", headers=auth_header(client))
     assert res.status_code == 503
     assert b"error" in res.data
 
@@ -49,7 +57,7 @@ def test_summary_returns_200_with_mocked_groq(client):
          patch("ml.scripts.predict.MLPredictor", create=True), \
          patch("api.routes.predictions.Groq") as mock_groq_cls:
         mock_groq_cls.return_value.chat.completions.create.return_value = mock_response
-        res = client.get("/api/predictions/summary")
+        res = client.get("/api/predictions/summary", headers=auth_header(client))
 
     assert res.status_code == 200
     data = res.get_json()
@@ -69,7 +77,7 @@ def test_summary_returns_503_on_groq_error(client):
     with patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}), \
          patch("api.routes.predictions.get_client", return_value=mock_supabase), \
          patch("api.routes.predictions.Groq", side_effect=Exception("network error")):
-        res = client.get("/api/predictions/summary")
+        res = client.get("/api/predictions/summary", headers=auth_header(client))
 
     assert res.status_code == 503
 
@@ -78,7 +86,7 @@ def test_replenishment_returns_empty_plan_when_ml_unavailable(client):
     with patch("ml.scripts.predict.MLPredictor") as mock_predictor:
         mock_predictor.side_effect = RuntimeError("supabase unavailable")
 
-        res = client.get("/api/replenishment")
+        res = client.get("/api/replenishment", headers=auth_header(client))
 
     assert res.status_code == 200
     data = res.get_json()

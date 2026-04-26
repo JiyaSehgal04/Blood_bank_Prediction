@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import api from '../lib/api'
+import { DATA_CACHE_INVALIDATED_EVENT, readCache, writeCache } from '../lib/sessionCache'
 import {
   XAxis, YAxis, Tooltip, ResponsiveContainer,
   AreaChart, Area, CartesianGrid,
@@ -50,23 +51,6 @@ function isCanceledError(e: unknown) {
   return typeof e === 'object' && e !== null && 'name' in e && e.name === 'CanceledError'
 }
 
-function readCache<T>(key: string, fallback: T): T {
-  try {
-    const cached = sessionStorage.getItem(key)
-    return cached ? JSON.parse(cached) as T : fallback
-  } catch {
-    return fallback
-  }
-}
-
-function writeCache<T>(key: string, value: T) {
-  try {
-    sessionStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    // Ignore private-mode or quota failures; cache is just an optimization.
-  }
-}
-
 function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
@@ -87,8 +71,9 @@ export default function Predictions() {
   const [summary, setSummary] = useState('')
   const [summaryLoading, setSummaryLoading] = useState(true)
   const [summaryError, setSummaryError] = useState('')
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const loadData = async (signal?: AbortSignal) => {
+  const loadData = useCallback(async (signal?: AbortSignal) => {
     const showBlockingLoader = predictions.length === 0
     const startedAt = Date.now()
     if (showBlockingLoader) setLoading(true)
@@ -120,11 +105,11 @@ export default function Predictions() {
     } catch (e: unknown) {
       if (!isCanceledError(e)) console.error(e)
     }
-  }
+  }, [predictions.length])
 
-  const refreshData = async (signal?: AbortSignal) => {
+  const refreshData = useCallback(async (signal?: AbortSignal, blocking = true) => {
     const startedAt = Date.now()
-    setLoading(true)
+    if (blocking) setLoading(true)
     try {
       const [p, r] = await Promise.all([
         api.get('/predictions', { signal }),
@@ -139,13 +124,15 @@ export default function Predictions() {
     } catch (e: unknown) {
       if (!isCanceledError(e)) console.error(e)
     } finally {
-      const remaining = MIN_CHART_LOADING_MS - (Date.now() - startedAt)
-      if (remaining > 0) await wait(remaining)
-      if (!signal?.aborted) setLoading(false)
+      if (blocking) {
+        const remaining = MIN_CHART_LOADING_MS - (Date.now() - startedAt)
+        if (remaining > 0) await wait(remaining)
+        if (!signal?.aborted) setLoading(false)
+      }
     }
-  }
+  }, [])
 
-  const fetchSummary = async (component: string, signal?: AbortSignal) => {
+  const fetchSummary = useCallback(async (component: string, signal?: AbortSignal) => {
     setSummaryLoading(true)
     setSummaryError('')
     try {
@@ -156,19 +143,40 @@ export default function Predictions() {
     } finally {
       setSummaryLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
     loadData(controller.signal)
     return () => controller.abort()
-  }, [])
+  }, [loadData])
+
+  useEffect(() => {
+    intervalRef.current = setInterval(() => {
+      refreshData(undefined, false)
+    }, 30000)
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [refreshData])
+
+  useEffect(() => {
+    const handleInvalidation = () => {
+      setPredictions([])
+      setReplenishment([])
+      setLoading(true)
+      refreshData(undefined, true)
+      fetchSummary(activeComponent)
+    }
+    window.addEventListener(DATA_CACHE_INVALIDATED_EVENT, handleInvalidation)
+    return () => window.removeEventListener(DATA_CACHE_INVALIDATED_EVENT, handleInvalidation)
+  }, [activeComponent, fetchSummary, refreshData])
 
   useEffect(() => {
     const controller = new AbortController()
     fetchSummary(activeComponent, controller.signal)
     return () => controller.abort()
-  }, [activeComponent])
+  }, [activeComponent, fetchSummary])
 
   const handleRunPredictions = async () => {
     setRunning(true)
@@ -177,7 +185,7 @@ export default function Predictions() {
     try {
       await api.post('/predictions/run')
       await Promise.all([
-        refreshData(),
+        refreshData(undefined, true),
         fetchSummary(activeComponent),
       ])
     } catch (err: unknown) {
@@ -300,7 +308,7 @@ export default function Predictions() {
               </p>
               <div className="flex items-baseline gap-3">
                 <span className="mono-data text-4xl font-bold text-[#1b1c15]">
-                  {totalDemand.toFixed(1)}
+                  {loading ? '—' : totalDemand.toFixed(1)}
                 </span>
                 <span className="text-[#006d30] font-mono text-sm">predicted units</span>
               </div>

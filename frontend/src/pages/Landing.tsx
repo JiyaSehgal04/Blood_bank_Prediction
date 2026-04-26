@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth'
 
 const STATS = [
   { value: '2,448', label: 'Blood Units Tracked' },

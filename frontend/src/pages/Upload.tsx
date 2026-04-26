@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import api from '../lib/api'
-import { readCache, writeCache } from '../lib/sessionCache'
+import { invalidateDataCaches, readCache, writeCache } from '../lib/sessionCache'
 
 interface UploadRecord {
   id: string
@@ -28,7 +28,7 @@ interface UploadResult {
   warnings?: string[]
 }
 
-type BusyAction = 'upload' | 'bulk' | null
+type BusyAction = 'upload' | null
 const UPLOAD_HISTORY_CACHE_KEY = 'blood_bank_upload_history_cache'
 
 const ACCEPTED_EXTENSIONS = ['.xlsx', '.csv']
@@ -64,10 +64,12 @@ export default function Upload() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [dragActive, setDragActive] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const uploading = busyAction !== null
 
-  const loadHistory = () => {
+  const loadHistory = (blocking = history.length === 0) => {
+    if (blocking) setLoading(true)
     api.get('/upload/history')
       .then((r) => {
         const nextHistory = r.data.history ?? []
@@ -78,7 +80,16 @@ export default function Upload() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(loadHistory, [])
+  useEffect(() => {
+    loadHistory()
+  }, [])
+
+  useEffect(() => {
+    intervalRef.current = setInterval(() => loadHistory(false), 30000)
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [history.length])
 
   const latestBatch = history[0]
   const importedTotal = useMemo(
@@ -128,40 +139,16 @@ export default function Upload() {
 
     try {
       const r = await api.post('/upload', fd)
+      if ((r.data.inserted ?? 0) > 0) {
+        invalidateDataCaches()
+      }
       setResult(r.data)
       setSelectedFile(null)
       if (fileRef.current) fileRef.current.value = ''
-      loadHistory()
+      loadHistory(true)
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } }
       setError(e?.response?.data?.error ?? 'Upload failed. Check that the sheet headers match the register format.')
-    } finally {
-      setBusyAction(null)
-    }
-  }
-
-  const handleBulkLoad = async () => {
-    setBusyAction('bulk')
-    setResult(null)
-    setError('')
-    try {
-      const r = await api.post('/upload/bulk-load')
-      setResult({
-        inserted: r.data.inserted ?? 0,
-        duplicates: r.data.duplicates ?? 0,
-        flagged: r.data.flagged ?? 0,
-        errors: r.data.errors ?? 0,
-        message: r.data.message,
-        batch_id: r.data.batch_id,
-        total_rows: r.data.total_rows,
-        summary_rows_upserted: r.data.summary_rows_upserted,
-        predictions_generated: r.data.predictions_generated,
-        warnings: r.data.warnings ?? [],
-      })
-      loadHistory()
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } }
-      setError(e?.response?.data?.error ?? 'Bulk load failed.')
     } finally {
       setBusyAction(null)
     }
@@ -325,17 +312,6 @@ export default function Upload() {
                   {busyAction === 'upload' ? 'sync' : 'database_upload'}
                 </span>
                 {busyAction === 'upload' ? 'Loading to Database...' : 'Load to Database'}
-              </button>
-              <button
-                type="button"
-                onClick={handleBulkLoad}
-                disabled={uploading}
-                className="inline-flex items-center justify-center gap-2 border border-[#1b1c15] text-[#1b1c15] px-5 py-3 text-sm font-bold rounded hover:bg-[#1b1c15] hover:text-white transition-all disabled:opacity-40"
-              >
-                <span className="material-symbols-outlined text-[18px]">
-                  {busyAction === 'bulk' ? 'sync' : 'storage'}
-                </span>
-                {busyAction === 'bulk' ? 'Bulk Loading...' : 'Load Seed CSV'}
               </button>
             </div>
           </form>

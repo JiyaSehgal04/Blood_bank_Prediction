@@ -42,7 +42,7 @@ class DonorService:
             "phone":             data.get("phone", "").strip(),
             "email":             data.get("email", "").strip(),
             "last_donation_date":data.get("last_donation_date"),
-            "total_donations":   1,
+            "total_donations":   0,
             "is_eligible":       True,
         }
         # recompute eligibility if last_donation_date provided
@@ -58,13 +58,24 @@ class DonorService:
         return result.data[0] if result.data else None
 
     def list_donors(self, blood_group: str = None,
-                    eligible_only: bool = False) -> list:
+                    eligible_only: bool = False,
+                    search: str = "") -> list:
         q = self._client.table(DONORS_TABLE).select("*")
         if blood_group:
             q = q.eq("blood_group", blood_group)
         if eligible_only:
             q = q.eq("is_eligible", True)
-        return q.order("name").execute().data or []
+        donors = q.order("name").execute().data or []
+
+        term = (search or "").strip().lower()
+        if not term:
+            return donors
+        return [
+            d for d in donors
+            if term in str(d.get("name") or "").lower()
+            or term in str(d.get("phone") or "").lower()
+            or term in str(d.get("email") or "").lower()
+        ]
 
     def update_donor(self, donor_id: str, data: dict) -> Optional[dict]:
         # Recompute eligibility if last_donation_date changed

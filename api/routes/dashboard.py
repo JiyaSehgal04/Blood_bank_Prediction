@@ -27,6 +27,15 @@ def _fetch_query(query_factory) -> list:
         start += FETCH_PAGE_SIZE
 
 
+def _upload_totals(client) -> tuple[int, int]:
+    upload_rows = _fetch_query(
+        lambda: client.table("upload_history").select("inserted,total_rows")
+    )
+    total_batches = len(upload_rows)
+    total_records = sum(r.get("total_rows") or r.get("inserted", 0) for r in upload_rows)
+    return total_batches, total_records
+
+
 @dashboard_bp.route("/dashboard/stats", methods=["GET"])
 def dashboard_stats():
     client = get_client()
@@ -97,11 +106,7 @@ def dashboard_stats():
         alert_counts[s] = alert_counts.get(s, 0) + 1
 
     # ── upload history ────────────────────────────────────────────────────────
-    uploads = client.table("upload_history").select("*").order(
-        "uploaded_at", desc=True).limit(5).execute()
-    upload_rows = uploads.data or []
-    total_batches = len(upload_rows)
-    total_records = sum(r.get("inserted", 0) for r in upload_rows)
+    total_batches, total_records = _upload_totals(client)
 
     return jsonify({
         "inventory": {

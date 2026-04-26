@@ -23,7 +23,12 @@ def list_donors():
     svc = DonorService()
     blood_group   = request.args.get("blood_group")
     eligible_only = request.args.get("eligible", "").lower() == "true"
-    donors = svc.list_donors(blood_group=blood_group, eligible_only=eligible_only)
+    search        = request.args.get("search", "")
+    donors = svc.list_donors(
+        blood_group=blood_group,
+        eligible_only=eligible_only,
+        search=search,
+    )
     return jsonify({"donors": donors, "count": len(donors)}), 200
 
 

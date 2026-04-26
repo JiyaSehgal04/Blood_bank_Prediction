@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import api from '../lib/api'
-import { readCache, writeCache } from '../lib/sessionCache'
+import { DATA_CACHE_INVALIDATED_EVENT, readCache, writeCache } from '../lib/sessionCache'
 
 interface Alert {
   id: number
@@ -37,9 +37,10 @@ export default function Alerts() {
   ))
   const [scanning, setScanning] = useState(false)
   const [filter, setFilter] = useState<'active' | 'all'>('active')
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const load = () => {
-    if (alerts.length === 0) setLoading(true)
+  const load = useCallback((blocking = alerts.length === 0) => {
+    if (blocking) setLoading(true)
     Promise.all([
       api.get('/alerts?resolved=false&limit=500'),
       api.get('/alerts?resolved=true&limit=500'),
@@ -52,9 +53,27 @@ export default function Alerts() {
       writeCache(ALERTS_CACHE_KEY, nextAlerts)
     })
       .catch(console.error).finally(() => setLoading(false))
-  }
+  }, [alerts.length])
 
-  useEffect(load, [])
+  useEffect(() => {
+    load()
+  }, [load])
+
+  useEffect(() => {
+    intervalRef.current = setInterval(() => load(false), 30000)
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [load])
+
+  useEffect(() => {
+    const handleInvalidation = () => {
+      setAlerts([])
+      load(true)
+    }
+    window.addEventListener(DATA_CACHE_INVALIDATED_EVENT, handleInvalidation)
+    return () => window.removeEventListener(DATA_CACHE_INVALIDATED_EVENT, handleInvalidation)
+  }, [load])
 
   const handleScan = async () => {
     setScanning(true)

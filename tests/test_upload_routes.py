@@ -67,7 +67,8 @@ def test_post_upload_predictions_reports_store_warnings(monkeypatch):
         def predict_all(self):
             return {"WB/PRC": [{}, {}], "FFP": [{}]}
 
-        def run_ml_alerts(self):
+        def run_ml_alerts(self, predictions=None):
+            assert predictions == {"WB/PRC": [{}, {}], "FFP": [{}]}
             return {}
 
     monkeypatch.setattr("ml.scripts.predict.MLPredictor", FakePredictor)

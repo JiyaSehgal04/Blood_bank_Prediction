@@ -48,7 +48,7 @@ def run_predictions():
         from ml.scripts.predict import MLPredictor
         predictor = MLPredictor()
         all_preds = predictor.predict_all()
-        predictor.run_ml_alerts()
+        predictor.run_ml_alerts(predictions=all_preds)
         total = sum(len(p) for p in all_preds.values())
         return jsonify({"predictions_generated": total, "status": "ok"}), 200
     except Exception as e:

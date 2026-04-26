@@ -1,13 +1,6 @@
-import { createContext, useContext, useState } from 'react'
+import { useState } from 'react'
 import type { ReactNode } from 'react'
-
-interface AuthContextType {
-  isAuthenticated: boolean
-  login: (username: string, password: string) => Promise<boolean>
-  logout: () => void
-}
-
-const AuthContext = createContext<AuthContextType | null>(null)
+import { AuthContext } from './auth'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(
@@ -29,12 +22,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return false
     } catch {
-      // Fallback: accept admin/bloodbank2026 locally
-      if (username === 'admin' && password === 'bloodbank2026') {
-        sessionStorage.setItem('auth_token', 'local-token')
-        setIsAuthenticated(true)
-        return true
-      }
       return false
     }
   }
@@ -49,10 +36,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   )
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
-  return ctx
 }
