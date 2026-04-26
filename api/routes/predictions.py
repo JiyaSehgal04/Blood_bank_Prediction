@@ -144,7 +144,10 @@ def predictions_summary():
     )
     if component:
         q = q.eq("component", component)
-    preds = (q.execute().data or [])
+    try:
+        preds = (q.execute().data or [])
+    except Exception:
+        preds = []
 
     replenishment = []
     try:
@@ -163,7 +166,10 @@ def predictions_summary():
     )
     if component:
         alerts_q = alerts_q.eq("component", component)
-    alerts = (alerts_q.execute().data or [])
+    try:
+        alerts = (alerts_q.execute().data or [])
+    except Exception:
+        alerts = []
 
     if not preds:
         prompt_data = (

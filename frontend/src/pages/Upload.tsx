@@ -139,9 +139,7 @@ export default function Upload() {
 
     try {
       const r = await api.post('/upload', fd)
-      if ((r.data.inserted ?? 0) > 0) {
-        invalidateDataCaches()
-      }
+      invalidateDataCaches()
       setResult(r.data)
       setSelectedFile(null)
       if (fileRef.current) fileRef.current.value = ''
