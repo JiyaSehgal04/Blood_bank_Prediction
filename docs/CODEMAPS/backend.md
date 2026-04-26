@@ -1,4 +1,4 @@
-<!-- Generated: 2026-04-26 | Files scanned: 28 | Token estimate: ~900 -->
+<!-- Generated: 2026-04-26 | Files scanned: 28 | Token estimate: ~950 -->
 
 # Backend Architecture
 
@@ -15,9 +15,9 @@ GET  /api/multilist/summary → multilist_summary() → MultiListInventory
 ```
 POST /api/upload          → upload_file()        → parse xlsx/csv → clean → upsert → backfill → predict
 GET  /api/upload/history  → upload_history()     → upload_history table
-POST /api/upload/bulk-load → bulk_load()         → load cleaned_records.csv → upsert → backfill → predict
 ```
 Post-upload pipeline: `SummaryService.backfill()` → `MLPredictor.predict_all()` → `MLPredictor.run_ml_alerts()`
+Note: bulk-load endpoint removed (2026-04-26)
 
 ### Allocation (`api/routes/allocate.py`)
 ```
@@ -44,6 +44,8 @@ GET  /api/predictions/anomalies → get_anomalies()      → MLPredictor.detect_
 GET  /api/replenishment        → replenishment()       → MLPredictor.replenishment_plan()
 GET  /api/predictions/summary  → predictions_summary() → Groq LLM (llama-3.3-70b)
 ```
+Changes (2026-04-26): Supabase queries for `preds` and `alerts` wrapped in try/except blocks
+(previously unguarded; caused 500 on httpx connection pool contamination from Groq HTTP/2 resets)
 
 ### Alerts (`api/routes/alerts.py`)
 ```
@@ -87,3 +89,8 @@ Alert raised on unmet/partial allocation (CRITICAL for emergency, HIGH otherwise
 
 ## Auth
 Simple hardcoded `admin:bloodbank2026` with SHA256 hash. In-memory token store. Not production-grade.
+
+## Error Handling Updates (2026-04-26)
+- **predictions_summary()**: Supabase query failures no longer crash endpoint (returns partial data with empty arrays instead of 500)
+- **Frontend cache invalidation**: Upload.tsx now invalidates caches unconditionally on success, not conditionally on row count
+- **Predictions page**: Loading state properly managed in error paths to prevent UI lockup

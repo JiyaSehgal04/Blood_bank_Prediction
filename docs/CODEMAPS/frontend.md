@@ -1,4 +1,4 @@
-<!-- Generated: 2026-04-26 | Files scanned: 14 | Token estimate: ~700 -->
+<!-- Generated: 2026-04-26 | Files scanned: 14 | Token estimate: ~750 -->
 
 # Frontend Architecture
 
@@ -60,6 +60,16 @@ App
 ## UI Theme
 Dark sidebar (`#1b1c15`) with active state green (`#006d30`). Light content area (`#fbfaee`).
 "SRM Global Hospitals" branding. Lucide icons + Material Symbols for nav.
+
+## Upload Flow Changes (2026-04-26)
+- Removed bulk-load button and `handleBulkLoad` handler from Upload.tsx
+- `BusyAction` type narrowed to `'upload' | null` (was broader)
+- `invalidateDataCaches()` now called unconditionally on successful upload (not guarded by `inserted > 0`)
+- Effect: cache clears immediately, subsequent page navigation/tabs see fresh data
+
+## Predictions Page Changes (2026-04-26)
+- Aggregate total demand shows `—` placeholder when `loading === true` (fixes stale cache display during refresh)
+- `handleRunPredictions()` now calls `setLoading(false)` in catch block (ensures UI recovers after failed runs)
 
 ## Key Dependencies
 

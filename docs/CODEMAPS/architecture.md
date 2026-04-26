@@ -1,4 +1,4 @@
-<!-- Generated: 2026-04-26 | Files scanned: 45 | Token estimate: ~800 -->
+<!-- Generated: 2026-04-26 | Files scanned: 45 | Token estimate: ~850 -->
 
 # Architecture Overview
 
@@ -10,9 +10,8 @@ Monolithic Flask API + React SPA + ML pipeline. Single repo, single database (Su
 ## High-Level Data Flow
 
 ```
-  Excel/CSV ──► ingest/ingest_file.py ──► clean_raw_rows() ──► Supabase
+  Excel/CSV ──► POST /api/upload ──► parse & clean ──► Supabase
   Manual Entry ──► POST /api/inventory ──► clean_raw_rows() ──► Supabase
-  Bulk Load ──► POST /api/upload/bulk-load ──► Supabase
 
   Supabase ──► SummaryService.backfill() ──► daily_summary table
   daily_summary ──► FeaturePipeline ──► ML models (SES / XGBoost / IF)
@@ -21,6 +20,7 @@ Monolithic Flask API + React SPA + ML pipeline. Single repo, single database (Su
   React SPA ──► Flask API (port 5001) ──► Supabase
   React SPA ──► Vite dev server (port 5173)
 ```
+Note: bulk-load endpoint removed 2026-04-26 (use direct /api/upload instead)
 
 ## Service Boundaries
 

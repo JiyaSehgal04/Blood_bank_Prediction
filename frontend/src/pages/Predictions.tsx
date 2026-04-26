@@ -148,16 +148,11 @@ export default function Predictions() {
       const startedAt = Date.now();
       if (blocking) setLoading(true);
       try {
-        const [p, r] = await Promise.all([
-          api.get("/predictions", { signal }),
-          api.get("/replenishment", { signal }),
-        ]);
+        const p = await api.get("/predictions", { signal });
         const nextPredictions = p.data.predictions ?? [];
-        const nextReplenishment = r.data.replenishment ?? [];
+        if (signal?.aborted) return;
         setPredictions(nextPredictions);
-        setReplenishment(nextReplenishment);
         writeCache(PREDICTIONS_CACHE_KEY, nextPredictions);
-        writeCache(REPLENISHMENT_CACHE_KEY, nextReplenishment);
       } catch (e: unknown) {
         if (!isCanceledError(e)) console.error(e);
       } finally {
@@ -166,6 +161,16 @@ export default function Predictions() {
           if (remaining > 0) await wait(remaining);
           if (!signal?.aborted) setLoading(false);
         }
+      }
+
+      try {
+        const r = await api.get("/replenishment", { signal });
+        const nextReplenishment = r.data.replenishment ?? [];
+        if (signal?.aborted) return;
+        setReplenishment(nextReplenishment);
+        writeCache(REPLENISHMENT_CACHE_KEY, nextReplenishment);
+      } catch (e: unknown) {
+        if (!isCanceledError(e)) console.error(e);
       }
     },
     [],

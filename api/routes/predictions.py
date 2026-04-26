@@ -205,7 +205,8 @@ def predictions_summary():
         prompt_data = "\n".join(lines)
 
     try:
-        groq_client = Groq(api_key=api_key)
+        import httpx
+        groq_client = Groq(api_key=api_key, http_client=httpx.Client(http2=False))
         response = groq_client.chat.completions.create(
             messages=[
                 {

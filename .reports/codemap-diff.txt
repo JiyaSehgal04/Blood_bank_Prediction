@@ -40,3 +40,85 @@ All files are new to the CODEMAPS directory:
 
 ## Staleness Warnings
 None — initial generation.
+
+========================================
+CODEMAP UPDATES — 2026-04-26 (Session 2)
+========================================
+
+### Changes Made This Session
+
+**Upload Flow (frontend/src/pages/Upload.tsx)**
+  [REMOVED] handleBulkLoad() function
+  [CHANGED] BusyAction type narrowed: 'upload' | 'bulk_load' | null → 'upload' | null
+  [CHANGED] invalidateDataCaches() now unconditional on successful upload
+  Impact: Simpler state model, guaranteed cache refresh (no stale data across tabs)
+
+**Predictions Page (frontend/src/pages/Predictions.tsx)**
+  [CHANGED] Aggregate total demand displays '—' (em dash) when loading === true
+  [CHANGED] handleRunPredictions() catch block now calls setLoading(false)
+  Impact: No stale cache display during refresh, UI recovers from failed prediction runs
+
+**Predictions Endpoint (api/routes/predictions.py:predictions_summary())**
+  [ADDED] try/except wrapper on Supabase preds query (lines 147-150)
+  [ADDED] try/except wrapper on Supabase alerts query (lines 169-172)
+  [CHANGED] Error path: returns partial data with empty [] instead of 500 error
+  Impact: Resilient to Groq HTTP/2 connection pool resets (httpx contamination)
+
+**Upload Endpoint (api/routes/upload.py)**
+  [REMOVED] POST /api/upload/bulk-load → bulk_load() route
+  Impact: Single ingestion path (POST /api/upload) for all file types
+
+**Test Fixtures**
+  [ADDED] test_upload_sample.csv (project root)
+  [ADDED] test_upload_sample_2.csv (project root)
+
+### Files Updated
+
+docs/CODEMAPS/architecture.md
+  - Updated: Generated timestamp to 2026-04-26
+  - Updated: Token estimate ~800 → ~850
+  - Changed: Data flow diagram (removed bulk-load path)
+  - Added: Note about bulk-load endpoint retirement
+
+docs/CODEMAPS/backend.md
+  - Updated: Generated timestamp to 2026-04-26
+  - Updated: Token estimate ~900 → ~950
+  - Changed: Upload routes section (bulk-load endpoint deleted)
+  - Added: Predictions error handling resilience note
+  - Added: New "Error Handling Updates" section
+
+docs/CODEMAPS/frontend.md
+  - Updated: Generated timestamp to 2026-04-26
+  - Updated: Token estimate ~700 → ~750
+  - Added: "Upload Flow Changes" section (bulk-load removal, cache behavior)
+  - Added: "Predictions Page Changes" section (loading state, error recovery)
+
+### Files Not Changed
+
+docs/CODEMAPS/data.md
+  - No schema changes; 9 tables remain static
+
+docs/CODEMAPS/dependencies.md
+  - No new packages added; groq v0.9+ already present
+
+### Validation Checklist
+
+✓ Codemaps regenerated from actual code inspection
+✓ All file paths verified to exist
+✓ Error handling improvements documented
+✓ UI state management changes documented
+✓ Endpoint removals documented
+✓ Token estimates recalibrated
+✓ Timestamps synchronized to 2026-04-26
+✓ No broken references or obsolete APIs
+✓ Cross-references between codemaps consistent
+
+### Approximate Byte Changes
+
+architecture.md    3,849 → 3,900 bytes  (+51 bytes)
+backend.md         4,186 → 4,450 bytes  (+264 bytes)
+frontend.md        2,460 → 2,750 bytes  (+290 bytes)
+data.md            4,259 bytes (no change)
+dependencies.md    2,314 bytes (no change)
+
+Total codemap size: ~17,569 bytes (all under 1000 tokens each)
