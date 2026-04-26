@@ -18,6 +18,7 @@ Run:
     python3 api/app.py
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -46,7 +47,9 @@ PUBLIC_ROUTES = {
 
 def create_app() -> Flask:
     app = Flask(__name__)
-    CORS(app, origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"])
+    _extra = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+    _origins = ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"] + _extra
+    CORS(app, origins=_origins)
 
     @app.before_request
     def enforce_api_auth():
