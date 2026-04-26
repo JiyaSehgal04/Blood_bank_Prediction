@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
+import api from '../lib/api'
 import { AuthContext } from './auth'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -9,18 +10,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string) => {
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        sessionStorage.setItem('auth_token', data.token || 'authenticated')
-        setIsAuthenticated(true)
-        return true
-      }
-      return false
+      const { data } = await api.post('/auth/login', { username, password })
+      sessionStorage.setItem('auth_token', data.token || 'authenticated')
+      setIsAuthenticated(true)
+      return true
     } catch {
       return false
     }

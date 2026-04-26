@@ -1,7 +1,9 @@
 import axios from 'axios'
 
+const apiRoot = import.meta.env.VITE_API_URL?.replace(/\/+$/, '')
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api',
+  baseURL: apiRoot ? `${apiRoot}/api` : '/api',
 })
 
 // Attach token from sessionStorage
