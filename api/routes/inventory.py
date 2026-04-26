@@ -25,6 +25,20 @@ TABLE = "blood_inventory"
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+_PAGE = 1000
+
+
+def _fetch_all(query_factory) -> list:
+    rows: list = []
+    start = 0
+    while True:
+        batch = (query_factory().range(start, start + _PAGE - 1).execute().data or [])
+        rows.extend(batch)
+        if len(batch) < _PAGE:
+            return rows
+        start += _PAGE
+
+
 def _upsert(records: list[dict]) -> tuple[int, int]:
     client = get_client()
     inserted = errors = 0
@@ -44,15 +58,20 @@ def _upsert(records: list[dict]) -> tuple[int, int]:
 def list_inventory():
     """GET /api/inventory?blood_group=O Pos&component=WB/PRC&status=available"""
     client = get_client()
-    q = client.table(TABLE).select("*")
-
+    filters: list[tuple[str, str]] = []
     for param in ("blood_group", "component", "status"):
         val = request.args.get(param)
         if val:
-            q = q.eq(param, val)
+            filters.append((param, val))
 
-    result = q.order("expiry_date").execute()
-    return jsonify({"units": result.data, "count": len(result.data)}), 200
+    def make_query():
+        q = client.table(TABLE).select("*")
+        for col, val in filters:
+            q = q.eq(col, val)
+        return q.order("expiry_date")
+
+    units = _fetch_all(make_query)
+    return jsonify({"units": units, "count": len(units)}), 200
 
 
 @inventory_bp.route("/inventory", methods=["POST"])

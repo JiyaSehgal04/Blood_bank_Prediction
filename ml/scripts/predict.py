@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from datetime import date, timedelta
+from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
@@ -173,7 +174,7 @@ class MLPredictor:
 
     # ── ML alerts ─────────────────────────────────────────────────────────────
 
-    def run_ml_alerts(self, predictions: dict | None = None) -> dict:
+    def run_ml_alerts(self, predictions: Optional[dict] = None) -> dict:
         """Compare forecasts vs live stock; raise shortage/surplus/trend alerts."""
         stock    = self.pipe.fetch_stock_levels()
         expiring = self.pipe.fetch_expiry_counts()

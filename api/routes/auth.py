@@ -5,6 +5,7 @@ POST /api/auth/login
 
 from flask import Blueprint, request, jsonify
 import hashlib, secrets
+from typing import Optional
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api")
 
@@ -15,7 +16,7 @@ _USERS = {
 _SESSIONS: dict[str, str] = {}   # token → username
 
 
-def get_bearer_token(auth_header: str | None = None) -> str:
+def get_bearer_token(auth_header: Optional[str] = None) -> str:
     """Extract a Bearer token from an Authorization header."""
     header = auth_header if auth_header is not None else request.headers.get("Authorization", "")
     scheme, _, token = header.partition(" ")
@@ -24,12 +25,12 @@ def get_bearer_token(auth_header: str | None = None) -> str:
     return token.strip()
 
 
-def validate_token(token: str) -> str | None:
+def validate_token(token: str) -> Optional[str]:
     """Return the username for a valid session token, otherwise None."""
     return _SESSIONS.get(token)
 
 
-def current_user() -> str | None:
+def current_user() -> Optional[str]:
     return validate_token(get_bearer_token())
 
 

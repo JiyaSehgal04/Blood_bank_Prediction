@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from datetime import date, timedelta
+from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
@@ -120,8 +121,8 @@ class FeaturePipeline:
         self,
         raw: pd.DataFrame,
         component: str = "WB/PRC",
-        expiry_counts: dict | None = None,
-        stock_levels: dict | None = None,
+        expiry_counts: Optional[dict] = None,
+        stock_levels: Optional[dict] = None,
     ) -> pd.DataFrame:
         """
         Build full feature matrix for one component.

@@ -21,6 +21,8 @@ except ImportError:
     print("ERROR: supabase package not installed. Run: pip3 install supabase")
     sys.exit(1)
 
+import httpx
+
 _client: "Optional[Client]" = None
 
 
@@ -33,4 +35,14 @@ def get_client() -> "Client":
             print("ERROR: SUPABASE_URL and SUPABASE_KEY must be set in .env")
             sys.exit(1)
         _client = create_client(url, key)
+        # HTTP/2 breaks on macOS Python 3.9 (LibreSSL) with httpcore ReadError.
+        # Replace the postgrest session with an HTTP/1.1-only client so all
+        # DB requests use a stable transport.
+        old = _client.postgrest.session
+        _client.postgrest.session = httpx.Client(
+            http2=False,
+            headers=dict(old.headers),
+            timeout=old.timeout,
+        )
+        old.close()
     return _client

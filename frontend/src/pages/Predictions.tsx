@@ -106,53 +106,22 @@ export default function Predictions() {
   const [summaryError, setSummaryError] = useState("");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const loadData = useCallback(
-    async (signal?: AbortSignal) => {
-      const showBlockingLoader = predictions.length === 0;
-      const startedAt = Date.now();
-      if (showBlockingLoader) setLoading(true);
-      try {
-        const p = await api.get("/predictions", { signal });
-        const nextPredictions = p.data.predictions ?? [];
-        if (!showBlockingLoader) {
-          const remaining = CHART_ANIMATION_MS - (Date.now() - startedAt);
-          if (remaining > 0) await wait(remaining);
-        }
-        if (signal?.aborted) return;
-        setPredictions(nextPredictions);
-        writeCache(PREDICTIONS_CACHE_KEY, nextPredictions);
-      } catch (e: unknown) {
-        if (!isCanceledError(e)) console.error(e);
-      } finally {
-        if (showBlockingLoader) {
-          const remaining = MIN_CHART_LOADING_MS - (Date.now() - startedAt);
-          if (remaining > 0) await wait(remaining);
-          if (!signal?.aborted) setLoading(false);
-        }
-      }
-
-      try {
-        const r = await api.get("/replenishment", { signal });
-        const nextReplenishment = r.data.replenishment ?? [];
-        setReplenishment(nextReplenishment);
-        writeCache(REPLENISHMENT_CACHE_KEY, nextReplenishment);
-      } catch (e: unknown) {
-        if (!isCanceledError(e)) console.error(e);
-      }
-    },
-    [predictions.length],
-  );
-
-  const refreshData = useCallback(
+  const fetchData = useCallback(
     async (signal?: AbortSignal, blocking = true) => {
       const startedAt = Date.now();
       if (blocking) setLoading(true);
       try {
-        const p = await api.get("/predictions", { signal });
-        const nextPredictions = p.data.predictions ?? [];
+        const [predsRes, replRes] = await Promise.all([
+          api.get("/predictions", { signal }),
+          api.get("/replenishment", { signal }),
+        ]);
         if (signal?.aborted) return;
+        const nextPredictions = predsRes.data.predictions ?? [];
+        const nextReplenishment = replRes.data.replenishment ?? [];
         setPredictions(nextPredictions);
         writeCache(PREDICTIONS_CACHE_KEY, nextPredictions);
+        setReplenishment(nextReplenishment);
+        writeCache(REPLENISHMENT_CACHE_KEY, nextReplenishment);
       } catch (e: unknown) {
         if (!isCanceledError(e)) console.error(e);
       } finally {
@@ -161,16 +130,6 @@ export default function Predictions() {
           if (remaining > 0) await wait(remaining);
           if (!signal?.aborted) setLoading(false);
         }
-      }
-
-      try {
-        const r = await api.get("/replenishment", { signal });
-        const nextReplenishment = r.data.replenishment ?? [];
-        if (signal?.aborted) return;
-        setReplenishment(nextReplenishment);
-        writeCache(REPLENISHMENT_CACHE_KEY, nextReplenishment);
-      } catch (e: unknown) {
-        if (!isCanceledError(e)) console.error(e);
       }
     },
     [],
@@ -197,25 +156,24 @@ export default function Predictions() {
 
   useEffect(() => {
     const controller = new AbortController();
-    loadData(controller.signal);
+    fetchData(controller.signal, true);
     return () => controller.abort();
-  }, [loadData]);
+  }, [fetchData]);
 
   useEffect(() => {
     intervalRef.current = setInterval(() => {
-      refreshData(undefined, false);
+      fetchData(undefined, false);
     }, 30000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [refreshData]);
+  }, [fetchData]);
 
   useEffect(() => {
     const handleInvalidation = () => {
       setPredictions([]);
       setReplenishment([]);
-      setLoading(true);
-      refreshData(undefined, true);
+      fetchData(undefined, true);
       fetchSummary(activeComponent);
     };
     window.addEventListener(DATA_CACHE_INVALIDATED_EVENT, handleInvalidation);
@@ -224,7 +182,7 @@ export default function Predictions() {
         DATA_CACHE_INVALIDATED_EVENT,
         handleInvalidation,
       );
-  }, [activeComponent, fetchSummary, refreshData]);
+  }, [activeComponent, fetchData, fetchSummary]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -239,7 +197,7 @@ export default function Predictions() {
     try {
       await api.post("/predictions/run");
       await Promise.all([
-        refreshData(undefined, true),
+        fetchData(undefined, true),
         fetchSummary(activeComponent),
       ]);
     } catch (err: unknown) {
