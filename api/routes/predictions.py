@@ -98,7 +98,11 @@ def replenishment():
         plan = MLPredictor().replenishment_plan()
         return jsonify({"replenishment": plan, "count": len(plan)}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "replenishment": [],
+            "count": 0,
+            "warning": f"Replenishment unavailable: {e}",
+        }), 200
 
 
 def _get_summary_count() -> int:

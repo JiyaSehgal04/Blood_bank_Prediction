@@ -26,6 +26,11 @@ interface ReplenishItem {
   model_used: string
 }
 
+const PREDICTIONS_CACHE_KEY = 'blood_bank_predictions_cache'
+const REPLENISHMENT_CACHE_KEY = 'blood_bank_replenishment_cache'
+const MIN_CHART_LOADING_MS = 650
+const CHART_ANIMATION_MS = 900
+
 const BLOOD_GROUP_SHORT: Record<string, string> = {
   'O Pos': 'O+',  'O Neg': 'O−',
   'A Pos': 'A+',  'A Neg': 'A−',
@@ -41,10 +46,41 @@ function urgencyStyle(u: string) {
   }
 }
 
+function isCanceledError(e: unknown) {
+  return typeof e === 'object' && e !== null && 'name' in e && e.name === 'CanceledError'
+}
+
+function readCache<T>(key: string, fallback: T): T {
+  try {
+    const cached = sessionStorage.getItem(key)
+    return cached ? JSON.parse(cached) as T : fallback
+  } catch {
+    return fallback
+  }
+}
+
+function writeCache<T>(key: string, value: T) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    // Ignore private-mode or quota failures; cache is just an optimization.
+  }
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
 export default function Predictions() {
-  const [predictions, setPredictions] = useState<Prediction[]>([])
-  const [replenishment, setReplenishment] = useState<ReplenishItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [predictions, setPredictions] = useState<Prediction[]>(() => (
+    readCache<Prediction[]>(PREDICTIONS_CACHE_KEY, [])
+  ))
+  const [replenishment, setReplenishment] = useState<ReplenishItem[]>(() => (
+    readCache<ReplenishItem[]>(REPLENISHMENT_CACHE_KEY, [])
+  ))
+  const [loading, setLoading] = useState(() => (
+    readCache<Prediction[]>(PREDICTIONS_CACHE_KEY, []).length === 0
+  ))
   const [running, setRunning] = useState(false)
   const [runError, setRunError] = useState('')
   const [activeComponent, setActiveComponent] = useState('WB/PRC')
@@ -52,28 +88,74 @@ export default function Predictions() {
   const [summaryLoading, setSummaryLoading] = useState(true)
   const [summaryError, setSummaryError] = useState('')
 
-  const loadData = (signal?: AbortSignal) => {
-    setLoading(true)
-    Promise.all([
-      api.get('/predictions', { signal }),
-      api.get('/replenishment', { signal }),
-    ]).then(([p, r]) => {
-      setPredictions(p.data.predictions ?? [])
-      setReplenishment(r.data.replenishment ?? [])
-    }).catch((e) => {
-      if (e?.name !== 'CanceledError') console.error(e)
-    }).finally(() => setLoading(false))
+  const loadData = async (signal?: AbortSignal) => {
+    const showBlockingLoader = predictions.length === 0
+    const startedAt = Date.now()
+    if (showBlockingLoader) setLoading(true)
+    try {
+      const p = await api.get('/predictions', { signal })
+      const nextPredictions = p.data.predictions ?? []
+      if (!showBlockingLoader) {
+        const remaining = CHART_ANIMATION_MS - (Date.now() - startedAt)
+        if (remaining > 0) await wait(remaining)
+      }
+      if (signal?.aborted) return
+      setPredictions(nextPredictions)
+      writeCache(PREDICTIONS_CACHE_KEY, nextPredictions)
+    } catch (e: unknown) {
+      if (!isCanceledError(e)) console.error(e)
+    } finally {
+      if (showBlockingLoader) {
+        const remaining = MIN_CHART_LOADING_MS - (Date.now() - startedAt)
+        if (remaining > 0) await wait(remaining)
+        if (!signal?.aborted) setLoading(false)
+      }
+    }
+
+    try {
+      const r = await api.get('/replenishment', { signal })
+      const nextReplenishment = r.data.replenishment ?? []
+      setReplenishment(nextReplenishment)
+      writeCache(REPLENISHMENT_CACHE_KEY, nextReplenishment)
+    } catch (e: unknown) {
+      if (!isCanceledError(e)) console.error(e)
+    }
   }
 
-  const fetchSummary = (component: string, signal?: AbortSignal) => {
+  const refreshData = async (signal?: AbortSignal) => {
+    const startedAt = Date.now()
+    setLoading(true)
+    try {
+      const [p, r] = await Promise.all([
+        api.get('/predictions', { signal }),
+        api.get('/replenishment', { signal }),
+      ])
+      const nextPredictions = p.data.predictions ?? []
+      const nextReplenishment = r.data.replenishment ?? []
+      setPredictions(nextPredictions)
+      setReplenishment(nextReplenishment)
+      writeCache(PREDICTIONS_CACHE_KEY, nextPredictions)
+      writeCache(REPLENISHMENT_CACHE_KEY, nextReplenishment)
+    } catch (e: unknown) {
+      if (!isCanceledError(e)) console.error(e)
+    } finally {
+      const remaining = MIN_CHART_LOADING_MS - (Date.now() - startedAt)
+      if (remaining > 0) await wait(remaining)
+      if (!signal?.aborted) setLoading(false)
+    }
+  }
+
+  const fetchSummary = async (component: string, signal?: AbortSignal) => {
     setSummaryLoading(true)
     setSummaryError('')
-    api.get('/predictions/summary', { params: { component }, signal })
-      .then((r) => setSummary(r.data.summary ?? ''))
-      .catch((e) => {
-        if (e?.name !== 'CanceledError') setSummaryError('AI summary unavailable')
-      })
-      .finally(() => setSummaryLoading(false))
+    try {
+      const r = await api.get('/predictions/summary', { params: { component }, signal })
+      setSummary(r.data.summary ?? '')
+    } catch (e: unknown) {
+      if (!isCanceledError(e)) setSummaryError('AI summary unavailable')
+    } finally {
+      setSummaryLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -90,11 +172,14 @@ export default function Predictions() {
 
   const handleRunPredictions = async () => {
     setRunning(true)
+    setLoading(true)
     setRunError('')
     try {
       await api.post('/predictions/run')
-      loadData()
-      fetchSummary(activeComponent)
+      await Promise.all([
+        refreshData(),
+        fetchSummary(activeComponent),
+      ])
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } }
       setRunError(e?.response?.data?.error ?? 'Failed to run predictions')
@@ -103,9 +188,20 @@ export default function Predictions() {
     }
   }
 
-  const filteredPreds = predictions.filter((p) => p.component === activeComponent)
+  const latestPredictions = (() => {
+    const byGroup = new Map<string, Prediction>()
+    predictions
+      .filter((p) => p.component === activeComponent)
+      .forEach((p) => {
+        const current = byGroup.get(p.blood_group)
+        if (!current || p.prediction_date > current.prediction_date) {
+          byGroup.set(p.blood_group, p)
+        }
+      })
+    return [...byGroup.values()]
+  })()
 
-  const chartData = filteredPreds.map((p) => ({
+  const chartData = latestPredictions.map((p) => ({
     name: BLOOD_GROUP_SHORT[p.blood_group] ?? p.blood_group,
     demand: p.predicted_demand,
     low: p.confidence_low,
@@ -118,7 +214,7 @@ export default function Predictions() {
       .filter((r) => r.component === activeComponent)
       .forEach((r) => { repMap[r.blood_group] = r })
 
-    return filteredPreds.map((p) => {
+    return latestPredictions.map((p) => {
       const rep = repMap[p.blood_group]
       const coverageDays = rep && rep.est_demand_7d > 0
         ? ((rep.current_stock / rep.est_demand_7d) * 7).toFixed(1)
@@ -130,7 +226,7 @@ export default function Predictions() {
     })
   })()
 
-  const totalDemand = filteredPreds.reduce((s, p) => s + p.predicted_demand, 0)
+  const totalDemand = latestPredictions.reduce((s, p) => s + p.predicted_demand, 0)
   const models = [...new Set(predictions.map((p) => p.model_used))].join(', ')
 
   return (
@@ -248,9 +344,9 @@ export default function Predictions() {
                   fontSize: 11, fontFamily: 'JetBrains Mono', color: '#fff',
                 }}
               />
-              <Area type="monotone" dataKey="high" stroke="#92f5a4" fill="url(#highFill)" strokeWidth={1} name="Conf. High" />
-              <Area type="monotone" dataKey="demand" stroke="#006d30" fill="url(#demandFill)" strokeWidth={2.5} name="Demand" />
-              <Area type="monotone" dataKey="low" stroke="#4de082" fill="none" strokeWidth={1} strokeDasharray="4 4" name="Conf. Low" />
+              <Area type="monotone" dataKey="high" stroke="#92f5a4" fill="url(#highFill)" strokeWidth={1} name="Conf. High" animationDuration={CHART_ANIMATION_MS} animationEasing="ease-out" />
+              <Area type="monotone" dataKey="demand" stroke="#006d30" fill="url(#demandFill)" strokeWidth={2.5} name="Demand" animationDuration={CHART_ANIMATION_MS} animationEasing="ease-out" />
+              <Area type="monotone" dataKey="low" stroke="#4de082" fill="none" strokeWidth={1} strokeDasharray="4 4" name="Conf. Low" animationDuration={CHART_ANIMATION_MS} animationEasing="ease-out" />
             </AreaChart>
           </ResponsiveContainer>
         ) : (
@@ -275,7 +371,7 @@ export default function Predictions() {
                 const pct = card.coveragePct
                 return (
                   <div
-                    key={card.blood_group}
+                    key={`${card.component}-${card.blood_group}-${card.prediction_date}`}
                     className="soft-green-panel p-3 rounded border border-[#becabc]/10 hover:border-[#006d30]/30 transition-all flex flex-col"
                   >
                     <div className="flex justify-between items-center mb-2">
@@ -372,7 +468,7 @@ export default function Predictions() {
                   const { badge, label } = urgencyStyle(r.urgency)
                   return (
                     <tr
-                      key={`${r.blood_group}-${r.component}`}
+                      key={`${r.component}-${r.blood_group}-${i}`}
                       className={`border-b border-[#becabc]/10 ${i % 2 === 0 ? 'bg-white' : 'bg-[#fbfaee]'}`}
                     >
                       <td className="px-4 py-2.5 font-bold text-[#1b1c15] mono-data text-sm">

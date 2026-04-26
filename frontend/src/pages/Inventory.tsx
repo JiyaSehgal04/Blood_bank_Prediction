@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import api from '../lib/api'
+import { readCache, writeCache } from '../lib/sessionCache'
 
 interface Unit {
   unit_id: string
@@ -14,6 +15,8 @@ interface Unit {
 
 const GROUPS = ['', 'O Pos', 'A Pos', 'B Pos', 'AB Pos', 'O Neg', 'A Neg', 'B Neg', 'AB Neg']
 const COMPONENTS = ['', 'WB/PRC', 'FFP', 'PLT']
+const INVENTORY_CACHE_PREFIX = 'blood_bank_inventory_cache'
+const INVENTORY_TIME_PREFIX = 'blood_bank_inventory_updated_at'
 
 export default function Inventory() {
   const [units, setUnits] = useState<Unit[]>([])
@@ -25,15 +28,28 @@ export default function Inventory() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const load = () => {
-    setLoading(true)
     const params = new URLSearchParams()
     if (bloodGroup) params.set('blood_group', bloodGroup)
     if (component) params.set('component', component)
     if (status) params.set('status', status)
+    const cacheKey = `${INVENTORY_CACHE_PREFIX}:${params.toString()}`
+    const timeKey = `${INVENTORY_TIME_PREFIX}:${params.toString()}`
+    const cached = readCache<Unit[]>(cacheKey, [])
+    if (cached.length > 0) {
+      setUnits(cached)
+      setLastUpdated(readCache<string>(timeKey, ''))
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
     api.get(`/inventory?${params}`)
       .then((r) => {
-        setUnits(r.data.units ?? [])
-        setLastUpdated(new Date().toLocaleTimeString())
+        const nextUnits = r.data.units ?? []
+        const updatedAt = new Date().toLocaleTimeString()
+        setUnits(nextUnits)
+        setLastUpdated(updatedAt)
+        writeCache(cacheKey, nextUnits)
+        writeCache(timeKey, updatedAt)
       })
       .catch(console.error)
       .finally(() => setLoading(false))

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../lib/api'
+import { readCache, writeCache } from '../lib/sessionCache'
 
 interface Donor {
   id: number
@@ -13,8 +14,12 @@ interface Donor {
 }
 
 export default function Donors() {
-  const [donors, setDonors] = useState<Donor[]>([])
-  const [loading, setLoading] = useState(true)
+  const [donors, setDonors] = useState<Donor[]>(() => (
+    readCache<Donor[]>('blood_bank_donors_cache:', [])
+  ))
+  const [loading, setLoading] = useState(() => (
+    readCache<Donor[]>('blood_bank_donors_cache:', []).length === 0
+  ))
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({
@@ -25,9 +30,20 @@ export default function Donors() {
   const GROUPS = ['O Pos', 'A Pos', 'B Pos', 'AB Pos', 'O Neg', 'A Neg', 'B Neg', 'AB Neg']
 
   const load = () => {
-    setLoading(true)
     const params = search ? `?search=${encodeURIComponent(search)}` : ''
-    api.get(`/donors${params}`).then((r) => setDonors(r.data.donors ?? []))
+    const cacheKey = `blood_bank_donors_cache:${params}`
+    const cached = readCache<Donor[]>(cacheKey, [])
+    if (cached.length > 0) {
+      setDonors(cached)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
+    api.get(`/donors${params}`).then((r) => {
+      const nextDonors = r.data.donors ?? []
+      setDonors(nextDonors)
+      writeCache(cacheKey, nextDonors)
+    })
       .catch(console.error).finally(() => setLoading(false))
   }
 
@@ -155,7 +171,10 @@ export default function Donors() {
               <tr><td colSpan={6} className="px-4 py-12 text-center text-[#6f7a6e]">No donors found</td></tr>
             ) : (
               donors.map((d, i) => (
-                <tr key={d.id} className={`border-b border-[#becabc]/10 ${i % 2 === 0 ? 'bg-white' : 'bg-[#fbfaee]'}`}>
+                <tr
+                  key={d.id ?? `${d.email ?? d.phone ?? d.name}-${d.blood_group}-${i}`}
+                  className={`border-b border-[#becabc]/10 ${i % 2 === 0 ? 'bg-white' : 'bg-[#fbfaee]'}`}
+                >
                   <td className="px-4 py-3 font-medium text-[#1b1c15]">{d.name}</td>
                   <td className="px-4 py-3 mono-data text-xs">{d.blood_group}</td>
                   <td className="px-4 py-3 text-xs text-[#3f493f]">{d.phone || '—'}</td>

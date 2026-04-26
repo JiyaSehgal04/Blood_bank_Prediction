@@ -72,3 +72,16 @@ def test_summary_returns_503_on_groq_error(client):
         res = client.get("/api/predictions/summary")
 
     assert res.status_code == 503
+
+
+def test_replenishment_returns_empty_plan_when_ml_unavailable(client):
+    with patch("ml.scripts.predict.MLPredictor") as mock_predictor:
+        mock_predictor.side_effect = RuntimeError("supabase unavailable")
+
+        res = client.get("/api/replenishment")
+
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["replenishment"] == []
+    assert data["count"] == 0
+    assert "warning" in data

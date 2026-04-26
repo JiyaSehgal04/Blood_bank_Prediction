@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../lib/api'
+import { readCache, writeCache } from '../lib/sessionCache'
 
 interface Allocation {
   id: string
@@ -15,10 +16,15 @@ interface Allocation {
 
 const GROUPS = ['O Pos', 'A Pos', 'B Pos', 'AB Pos', 'O Neg', 'A Neg', 'B Neg', 'AB Neg']
 const COMPONENTS = ['WB/PRC', 'FFP', 'PLT']
+const ALLOCATIONS_CACHE_KEY = 'blood_bank_allocations_cache'
 
 export default function Allocate() {
-  const [allocations, setAllocations] = useState<Allocation[]>([])
-  const [loading, setLoading] = useState(true)
+  const [allocations, setAllocations] = useState<Allocation[]>(() => (
+    readCache<Allocation[]>(ALLOCATIONS_CACHE_KEY, [])
+  ))
+  const [loading, setLoading] = useState(() => (
+    readCache<Allocation[]>(ALLOCATIONS_CACHE_KEY, []).length === 0
+  ))
   const [form, setForm] = useState({
     blood_group: 'O Pos', component: 'WB/PRC',
     units_requested: 1, patient_name: '', hospital: '',
@@ -28,7 +34,12 @@ export default function Allocate() {
   const [submitting, setSubmitting] = useState(false)
 
   const loadAllocations = () => {
-    api.get('/allocations').then((r) => setAllocations(r.data.allocations ?? []))
+    if (allocations.length === 0) setLoading(true)
+    api.get('/allocations').then((r) => {
+      const nextAllocations = r.data.allocations ?? []
+      setAllocations(nextAllocations)
+      writeCache(ALLOCATIONS_CACHE_KEY, nextAllocations)
+    })
       .catch(console.error).finally(() => setLoading(false))
   }
 

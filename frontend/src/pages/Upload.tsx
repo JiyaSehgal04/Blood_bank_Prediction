@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import api from '../lib/api'
+import { readCache, writeCache } from '../lib/sessionCache'
 
 interface UploadRecord {
   id: string
@@ -28,6 +29,7 @@ interface UploadResult {
 }
 
 type BusyAction = 'upload' | 'bulk' | null
+const UPLOAD_HISTORY_CACHE_KEY = 'blood_bank_upload_history_cache'
 
 const ACCEPTED_EXTENSIONS = ['.xlsx', '.csv']
 
@@ -50,8 +52,12 @@ function metricColor(label: string) {
 }
 
 export default function Upload() {
-  const [history, setHistory] = useState<UploadRecord[]>([])
-  const [loading, setLoading] = useState(true)
+  const [history, setHistory] = useState<UploadRecord[]>(() => (
+    readCache<UploadRecord[]>(UPLOAD_HISTORY_CACHE_KEY, [])
+  ))
+  const [loading, setLoading] = useState(() => (
+    readCache<UploadRecord[]>(UPLOAD_HISTORY_CACHE_KEY, []).length === 0
+  ))
   const [busyAction, setBusyAction] = useState<BusyAction>(null)
   const [result, setResult] = useState<UploadResult | null>(null)
   const [error, setError] = useState('')
@@ -63,7 +69,11 @@ export default function Upload() {
 
   const loadHistory = () => {
     api.get('/upload/history')
-      .then((r) => setHistory(r.data.history ?? []))
+      .then((r) => {
+        const nextHistory = r.data.history ?? []
+        setHistory(nextHistory)
+        writeCache(UPLOAD_HISTORY_CACHE_KEY, nextHistory)
+      })
       .catch(console.error)
       .finally(() => setLoading(false))
   }

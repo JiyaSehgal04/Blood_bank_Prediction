@@ -34,8 +34,26 @@ COMPONENTS = ["WB/PRC", "FFP", "PLT"]
 SAFETY_STOCK = 5
 
 
+def _install_legacy_main_aliases() -> None:
+    """
+    Older model files may have been trained by running train.py directly, which
+    pickled these classes as __main__.* instead of ml.scripts.train.*.
+    """
+    main_module = sys.modules.get("__main__")
+    if main_module is None:
+        return
+
+    for cls in (SESForecaster, XGBForecaster, AnomalyDetector):
+        if not hasattr(main_module, cls.__name__):
+            setattr(main_module, cls.__name__, cls)
+
+
 def _load_model(path: Path):
-    return joblib.load(path) if path.exists() else None
+    if not path.exists():
+        return None
+
+    _install_legacy_main_aliases()
+    return joblib.load(path)
 
 
 class MLPredictor:

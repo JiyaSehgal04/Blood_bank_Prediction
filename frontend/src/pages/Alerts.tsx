@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../lib/api'
+import { readCache, writeCache } from '../lib/sessionCache'
 
 interface Alert {
   id: number
@@ -25,23 +26,30 @@ const SEVERITY_ORDER: Record<string, number> = {
   MEDIUM: 2,
   LOW: 3,
 }
+const ALERTS_CACHE_KEY = 'blood_bank_alerts_cache'
 
 export default function Alerts() {
-  const [alerts, setAlerts] = useState<Alert[]>([])
-  const [loading, setLoading] = useState(true)
+  const [alerts, setAlerts] = useState<Alert[]>(() => (
+    readCache<Alert[]>(ALERTS_CACHE_KEY, [])
+  ))
+  const [loading, setLoading] = useState(() => (
+    readCache<Alert[]>(ALERTS_CACHE_KEY, []).length === 0
+  ))
   const [scanning, setScanning] = useState(false)
   const [filter, setFilter] = useState<'active' | 'all'>('active')
 
   const load = () => {
-    setLoading(true)
+    if (alerts.length === 0) setLoading(true)
     Promise.all([
       api.get('/alerts?resolved=false&limit=500'),
       api.get('/alerts?resolved=true&limit=500'),
     ]).then(([active, resolved]) => {
-      setAlerts([
+      const nextAlerts = [
         ...(active.data.alerts ?? []),
         ...(resolved.data.alerts ?? []),
-      ])
+      ]
+      setAlerts(nextAlerts)
+      writeCache(ALERTS_CACHE_KEY, nextAlerts)
     })
       .catch(console.error).finally(() => setLoading(false))
   }
@@ -63,7 +71,11 @@ export default function Alerts() {
   const handleResolve = async (id: number) => {
     try {
       await api.put(`/alerts/${id}/resolve`)
-      setAlerts((prev) => prev.map((a) => a.id === id ? { ...a, is_resolved: true } : a))
+      setAlerts((prev) => {
+        const nextAlerts = prev.map((a) => a.id === id ? { ...a, is_resolved: true } : a)
+        writeCache(ALERTS_CACHE_KEY, nextAlerts)
+        return nextAlerts
+      })
     } catch (err) {
       console.error(err)
     }
