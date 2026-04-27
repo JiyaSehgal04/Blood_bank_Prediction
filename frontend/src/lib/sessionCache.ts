@@ -11,32 +11,39 @@ export async function prefetchAllCaches(apiClient: ApiClient): Promise<void> {
     },
     async () => {
       const { data } = await apiClient.get('/inventory')
-      writeCache('blood_bank_inventory_cache:', data)
+      writeCache('blood_bank_inventory_cache:', (data as Record<string, unknown>).units ?? [])
       writeCache('blood_bank_inventory_updated_at:', now)
     },
     async () => {
       const { data } = await apiClient.get('/donors')
-      writeCache('blood_bank_donors_cache:', data)
+      writeCache('blood_bank_donors_cache:', (data as Record<string, unknown>).donors ?? [])
     },
     async () => {
-      const { data } = await apiClient.get('/alerts')
-      writeCache('blood_bank_alerts_cache', data)
+      const [active, resolved] = await Promise.all([
+        apiClient.get('/alerts?resolved=false&limit=500'),
+        apiClient.get('/alerts?resolved=true&limit=500'),
+      ])
+      const merged = [
+        ...((active.data as Record<string, unknown>).alerts as unknown[] ?? []),
+        ...((resolved.data as Record<string, unknown>).alerts as unknown[] ?? []),
+      ]
+      writeCache('blood_bank_alerts_cache', merged)
     },
     async () => {
       const { data } = await apiClient.get('/predictions')
-      writeCache('blood_bank_predictions_cache', data)
+      writeCache('blood_bank_predictions_cache', (data as Record<string, unknown>).predictions ?? [])
     },
     async () => {
       const { data } = await apiClient.get('/replenishment')
-      writeCache('blood_bank_replenishment_cache', data)
+      writeCache('blood_bank_replenishment_cache', (data as Record<string, unknown>).replenishment ?? [])
     },
     async () => {
       const { data } = await apiClient.get('/allocations')
-      writeCache('blood_bank_allocations_cache', data)
+      writeCache('blood_bank_allocations_cache', (data as Record<string, unknown>).allocations ?? [])
     },
     async () => {
       const { data } = await apiClient.get('/upload/history')
-      writeCache('blood_bank_upload_history_cache', data)
+      writeCache('blood_bank_upload_history_cache', (data as Record<string, unknown>).history ?? [])
     },
   ]
 
