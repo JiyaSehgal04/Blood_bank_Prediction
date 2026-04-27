@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import api from '../lib/api'
-import { invalidateDataCaches, readCache, writeCache } from '../lib/sessionCache'
+import { invalidateDataCaches, prefetchAllCaches, readCache, writeCache } from '../lib/sessionCache'
 
 interface UploadRecord {
   id: string
@@ -140,6 +140,7 @@ export default function Upload() {
     try {
       const r = await api.post('/upload', fd)
       invalidateDataCaches()
+      prefetchAllCaches(api)
       setResult(r.data)
       setSelectedFile(null)
       if (fileRef.current) fileRef.current.value = ''

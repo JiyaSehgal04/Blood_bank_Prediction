@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import api from '../lib/api'
+import { invalidateDataCaches, prefetchAllCaches } from '../lib/sessionCache'
 
 const BLOOD_GROUPS = ['O Pos', 'A Pos', 'B Pos', 'AB Pos', 'O Neg', 'A Neg', 'B Neg', 'AB Neg']
 const COMPONENTS = ['WB/PRC', 'FFP', 'PLT']
@@ -101,6 +102,8 @@ export default function ManualEntry() {
       const response = await api.post('/inventory', payload)
       setSavedUnitId(response.data.unit_id ?? response.data.inserted?.unit_id ?? '')
       setForm(initialForm)
+      invalidateDataCaches()
+      prefetchAllCaches(api)
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string; errors?: string[] } } }
       setError(e?.response?.data?.errors?.join(' ') ?? e?.response?.data?.error ?? 'Manual entry failed.')
