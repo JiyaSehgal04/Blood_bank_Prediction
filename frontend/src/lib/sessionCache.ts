@@ -10,9 +10,9 @@ export async function prefetchAllCaches(apiClient: ApiClient): Promise<void> {
       writeCache('blood_bank_dashboard_stats_updated_at', now)
     },
     async () => {
-      const { data } = await apiClient.get('/inventory')
-      writeCache('blood_bank_inventory_cache:', (data as Record<string, unknown>).units ?? [])
-      writeCache('blood_bank_inventory_updated_at:', now)
+      const { data } = await apiClient.get('/inventory?status=available')
+      writeCache('blood_bank_inventory_cache:status=available', (data as Record<string, unknown>).units ?? [])
+      writeCache('blood_bank_inventory_updated_at:status=available', now)
     },
     async () => {
       const { data } = await apiClient.get('/donors')
