@@ -531,7 +531,15 @@ export default function Predictions() {
                 Generating summary…
               </p>
             ) : summaryError ? (
-              <p className="text-[#ffdad6] text-xs font-mono">{summaryError}</p>
+              <div className="flex flex-col gap-2">
+                <p className="text-[#ffdad6] text-xs font-mono">{summaryError}</p>
+                <button
+                  onClick={() => fetchSummary(activeComponent)}
+                  className="self-start text-[10px] font-mono uppercase tracking-widest text-[#79db8d] border border-[#79db8d]/40 px-2 py-1 rounded hover:bg-[#79db8d]/10 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
             ) : summary ? (
               <p className="text-white/80 text-sm leading-relaxed">{summary}</p>
             ) : (

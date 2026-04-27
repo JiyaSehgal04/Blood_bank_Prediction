@@ -10,14 +10,20 @@ Predictions are auto-generated after each upload.
 
 import os
 import sys
+import time
 from pathlib import Path
 from flask import Blueprint, request, jsonify
 from groq import Groq
+import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from db.supabase_client import get_client
 
 predictions_bp = Blueprint("predictions", __name__, url_prefix="/api")
+
+# (component -> {"summary": str, "expires_at": float})
+_SUMMARY_CACHE: dict[str, dict] = {}
+_SUMMARY_TTL_SECONDS = 120
 
 
 @predictions_bp.route("/predictions", methods=["GET"])
@@ -132,6 +138,10 @@ def predictions_summary():
         return jsonify({"error": "Summary unavailable"}), 503
 
     component = request.args.get("component", "")
+
+    cached = _SUMMARY_CACHE.get(component)
+    if cached and cached["expires_at"] > time.time():
+        return jsonify({"summary": cached["summary"], "component": component}), 200
     component_label = _COMPONENT_NAMES.get(component, component or "all components")
 
     client_db = get_client()
@@ -205,8 +215,7 @@ def predictions_summary():
         prompt_data = "\n".join(lines)
 
     try:
-        import httpx
-        groq_client = Groq(api_key=api_key, http_client=httpx.Client(http2=False))
+        groq_client = Groq(api_key=api_key, http_client=httpx.Client(http2=False, timeout=15.0))
         response = groq_client.chat.completions.create(
             messages=[
                 {
@@ -237,6 +246,7 @@ def predictions_summary():
         if not response.choices:
             return jsonify({"error": "Summary unavailable"}), 503
         summary = response.choices[0].message.content
+        _SUMMARY_CACHE[component] = {"summary": summary, "expires_at": time.time() + _SUMMARY_TTL_SECONDS}
         return jsonify({"summary": summary, "component": component}), 200
     except Exception:
         return jsonify({"error": "Summary unavailable"}), 503
