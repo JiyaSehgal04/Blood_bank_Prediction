@@ -8,6 +8,7 @@ Classes are imported from ml.scripts.train (not __main__), so joblib
 serialises them as ml.scripts.train.SESForecaster etc., which predict.py
 can load without AttributeError.
 """
+
 from ml.scripts.train import ModelTrainer
 
 trainer = ModelTrainer()
