@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import api from '../lib/api'
 import { AuthContext } from './auth'
+import { prefetchAllCaches } from '../lib/sessionCache'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(
@@ -13,6 +14,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data } = await api.post('/auth/login', { username, password })
       sessionStorage.setItem('auth_token', data.token || 'authenticated')
       setIsAuthenticated(true)
+      prefetchAllCaches(api)
       return true
     } catch {
       return false
