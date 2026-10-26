@@ -62,14 +62,14 @@ function urgencyStyle(u: string) {
       };
     case "MEDIUM":
       return {
-        badge: "bg-[#efeee3] text-[#3f493f]",
-        bar: "bg-[#585756]",
+        badge: "bg-[#efeaf8] text-[#4a4466]",
+        bar: "bg-[#5b5470]",
         label: "STABLE",
       };
     default:
       return {
-        badge: "bg-[#92f5a4]/30 text-[#005323]",
-        bar: "bg-[#006d30]",
+        badge: "bg-[#d9cfee]/30 text-[#492880]",
+        bar: "bg-[#6B4A98]",
         label: "OPTIMAL",
       };
   }
@@ -262,33 +262,33 @@ export default function Predictions() {
       {/* ── Editorial header ── */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="max-w-2xl">
-          <nav className="flex items-center gap-2 text-[#3f493f] text-[10px] font-mono uppercase tracking-[0.3em] mb-4">
+          <nav className="flex items-center gap-2 text-[#4a4466] text-[10px] font-mono uppercase tracking-[0.3em] mb-4">
             <span>Analytics</span>
             <span className="material-symbols-outlined text-[10px]">
               chevron_right
             </span>
-            <span className="text-[#006d30] font-semibold">Predictions</span>
+            <span className="text-[#6B4A98] font-semibold">Predictions</span>
           </nav>
-          <h1 className="font-headline text-5xl font-extrabold tracking-tighter text-[#1b1c15] leading-tight mb-3">
+          <h1 className="font-headline text-5xl font-extrabold tracking-tighter text-[#2e2157] leading-tight mb-3">
             7-Day Demand <br />
-            <span className="text-[#006d30]">Forecast Intelligence</span>
+            <span className="text-[#6B4A98]">Forecast Intelligence</span>
           </h1>
-          <p className="text-[#3f493f] text-sm leading-relaxed max-w-lg">
+          <p className="text-[#4a4466] text-sm leading-relaxed max-w-lg">
             Algorithmic projection of blood component requirements based on
             historical utilisation and current inventory velocity.
           </p>
         </div>
 
         <div className="flex flex-col items-start md:items-end gap-4">
-          <div className="flex bg-[#f5f4e8] p-1 rounded">
+          <div className="flex bg-[#f3effa] p-1 rounded">
             {["WB/PRC", "FFP", "PLT"].map((c) => (
               <button
                 key={c}
                 onClick={() => setActiveComponent(c)}
                 className={`px-4 py-1.5 text-xs font-mono font-bold uppercase tracking-wider rounded transition-colors ${
                   activeComponent === c
-                    ? "bg-white shadow-sm text-[#1b1c15]"
-                    : "text-[#3f493f] hover:text-[#1b1c15]"
+                    ? "bg-white shadow-sm text-[#2e2157]"
+                    : "text-[#4a4466] hover:text-[#2e2157]"
                 }`}
               >
                 {c}
@@ -299,7 +299,7 @@ export default function Predictions() {
           <button
             onClick={handleRunPredictions}
             disabled={running}
-            className="flex items-center gap-2 bg-[#006d30] text-white px-4 py-2 text-xs font-bold font-mono uppercase tracking-wider rounded hover:opacity-90 disabled:opacity-50 transition-all"
+            className="flex items-center gap-2 bg-[#6B4A98] text-white px-4 py-2 text-xs font-bold font-mono uppercase tracking-wider rounded hover:opacity-90 disabled:opacity-50 transition-all"
           >
             <span className="material-symbols-outlined text-[14px]">
               model_training
@@ -313,13 +313,13 @@ export default function Predictions() {
             </div>
           )}
 
-          <div className="flex items-center gap-4 text-[10px] font-mono text-[#3f493f] uppercase">
+          <div className="flex items-center gap-4 text-[10px] font-mono text-[#4a4466] uppercase">
             <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#006d30]" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[#6B4A98]" />
               Predicted Demand
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#becabc]" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[#d9d0ea]" />
               Confidence Band
             </span>
           </div>
@@ -327,30 +327,30 @@ export default function Predictions() {
       </div>
 
       {/* ── Full-width forecast chart ── */}
-      <section className="soft-green-panel rounded border border-[#becabc]/20 overflow-hidden">
+      <section className="soft-green-panel rounded border border-[#d9d0ea]/20 overflow-hidden">
         <div className="p-8 pb-4">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#3f493f] mb-1">
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#4a4466] mb-1">
                 System Aggregate — {activeComponent}
               </p>
               <div className="flex items-baseline gap-3">
-                <span className="mono-data text-4xl font-bold text-[#1b1c15]">
+                <span className="mono-data text-4xl font-bold text-[#2e2157]">
                   {loading ? "—" : totalDemand.toFixed(1)}
                 </span>
-                <span className="text-[#006d30] font-mono text-sm">
+                <span className="text-[#6B4A98] font-mono text-sm">
                   predicted units
                 </span>
               </div>
             </div>
-            <div className="text-[10px] font-mono text-[#6f7a6e] uppercase tracking-widest">
+            <div className="text-[10px] font-mono text-[#6b6680] uppercase tracking-widest">
               Auto-updated on upload
             </div>
           </div>
         </div>
 
         {loading ? (
-          <div className="h-64 flex items-center justify-center text-[#6f7a6e] text-sm mono-data animate-pulse px-8 pb-8">
+          <div className="h-64 flex items-center justify-center text-[#6b6680] text-sm mono-data animate-pulse px-8 pb-8">
             Loading predictions…
           </div>
         ) : chartData.length > 0 ? (
@@ -361,21 +361,21 @@ export default function Predictions() {
             >
               <defs>
                 <linearGradient id="demandFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#006d30" stopOpacity={0.15} />
-                  <stop offset="100%" stopColor="#006d30" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#6B4A98" stopOpacity={0.15} />
+                  <stop offset="100%" stopColor="#6B4A98" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="highFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#92f5a4" stopOpacity={0.2} />
-                  <stop offset="100%" stopColor="#92f5a4" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#d9cfee" stopOpacity={0.2} />
+                  <stop offset="100%" stopColor="#d9cfee" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#becabc22" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#d9d0ea22" />
               <XAxis
                 dataKey="name"
                 tick={{
                   fontSize: 10,
                   fontFamily: "JetBrains Mono",
-                  fill: "#3f493f",
+                  fill: "#4a4466",
                 }}
                 axisLine={false}
                 tickLine={false}
@@ -384,14 +384,14 @@ export default function Predictions() {
                 tick={{
                   fontSize: 10,
                   fontFamily: "JetBrains Mono",
-                  fill: "#3f493f",
+                  fill: "#4a4466",
                 }}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip
                 contentStyle={{
-                  background: "#1b1c15",
+                  background: "#2e2157",
                   border: "none",
                   borderRadius: 4,
                   fontSize: 11,
@@ -402,7 +402,7 @@ export default function Predictions() {
               <Area
                 type="monotone"
                 dataKey="high"
-                stroke="#92f5a4"
+                stroke="#d9cfee"
                 fill="url(#highFill)"
                 strokeWidth={1}
                 name="Conf. High"
@@ -412,7 +412,7 @@ export default function Predictions() {
               <Area
                 type="monotone"
                 dataKey="demand"
-                stroke="#006d30"
+                stroke="#6B4A98"
                 fill="url(#demandFill)"
                 strokeWidth={2.5}
                 name="Demand"
@@ -433,7 +433,7 @@ export default function Predictions() {
             </AreaChart>
           </ResponsiveContainer>
         ) : (
-          <div className="h-64 flex items-center justify-center text-[#6f7a6e] text-sm px-8 pb-8">
+          <div className="h-64 flex items-center justify-center text-[#6b6680] text-sm px-8 pb-8">
             No predictions yet — upload data to generate
           </div>
         )}
@@ -443,7 +443,7 @@ export default function Predictions() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: compact scrollable blood group cards */}
         <div className="lg:col-span-2">
-          <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#3f493f] mb-3">
+          <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#4a4466] mb-3">
             Coverage by Blood Group — {activeComponent}
           </p>
           <div className="max-h-72 overflow-y-auto pr-1 space-y-0">
@@ -456,10 +456,10 @@ export default function Predictions() {
                 return (
                   <div
                     key={`${card.component}-${card.blood_group}-${card.prediction_date}`}
-                    className="soft-green-panel p-3 rounded border border-[#becabc]/10 hover:border-[#006d30]/30 transition-all flex flex-col"
+                    className="soft-green-panel p-3 rounded border border-[#d9d0ea]/10 hover:border-[#6B4A98]/30 transition-all flex flex-col"
                   >
                     <div className="flex justify-between items-center mb-2">
-                      <span className="font-headline text-xl font-extrabold text-[#1b1c15] tracking-tighter">
+                      <span className="font-headline text-xl font-extrabold text-[#2e2157] tracking-tighter">
                         {BLOOD_GROUP_SHORT[card.blood_group] ??
                           card.blood_group}
                       </span>
@@ -470,34 +470,34 @@ export default function Predictions() {
                       </span>
                     </div>
                     <div className="flex items-baseline gap-1 mb-1">
-                      <span className="mono-data text-base font-bold text-[#1b1c15]">
+                      <span className="mono-data text-base font-bold text-[#2e2157]">
                         {card.predicted_demand.toFixed(1)}
                       </span>
-                      <span className="text-[9px] text-[#6f7a6e]">units</span>
+                      <span className="text-[9px] text-[#6b6680]">units</span>
                     </div>
                     {card.coverageDays !== null && (
                       <>
-                        <div className="w-full h-1 bg-[#becabc]/20 rounded-full overflow-hidden">
+                        <div className="w-full h-1 bg-[#d9d0ea]/20 rounded-full overflow-hidden">
                           <div
                             className={`${bar} h-full rounded-full`}
                             style={{ width: `${pct}%` }}
                           />
                         </div>
-                        <p className="text-[9px] font-mono text-[#6f7a6e] mt-0.5">
+                        <p className="text-[9px] font-mono text-[#6b6680] mt-0.5">
                           {card.coverageDays}d
                         </p>
                       </>
                     )}
                     {card.rep && (
-                      <div className="flex justify-between mt-1.5 pt-1.5 border-t border-[#becabc]/20">
-                        <span className="text-[9px] font-mono text-[#6f7a6e]">
+                      <div className="flex justify-between mt-1.5 pt-1.5 border-t border-[#d9d0ea]/20">
+                        <span className="text-[9px] font-mono text-[#6b6680]">
                           Stk{" "}
-                          <b className="text-[#1b1c15]">
+                          <b className="text-[#2e2157]">
                             {card.rep.current_stock}
                           </b>
                         </span>
                         <span
-                          className={`text-[9px] font-mono ${card.rep.expiring_in_7d > 0 ? "text-[#ba1a1a]" : "text-[#006d30]"}`}
+                          className={`text-[9px] font-mono ${card.rep.expiring_in_7d > 0 ? "text-[#ba1a1a]" : "text-[#6B4A98]"}`}
                         >
                           Exp <b>{card.rep.expiring_in_7d}</b>
                         </span>
@@ -507,7 +507,7 @@ export default function Predictions() {
                 );
               })}
               {groupCards.length === 0 && (
-                <div className="col-span-4 py-8 text-center text-[#6f7a6e] text-sm">
+                <div className="col-span-4 py-8 text-center text-[#6b6680] text-sm">
                   No data for {activeComponent}
                 </div>
               )}
@@ -516,12 +516,12 @@ export default function Predictions() {
         </div>
 
         {/* Right: AI Summary */}
-        <div className="bg-[#1b1c15] rounded p-5 flex flex-col">
+        <div className="bg-[#2e2157] rounded p-5 flex flex-col">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-[#79db8d]">
+            <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-[#c9bde5]">
               AI Summary · {activeComponent}
             </span>
-            <span className="material-symbols-outlined text-[#79db8d] text-[16px]">
+            <span className="material-symbols-outlined text-[#c9bde5] text-[16px]">
               auto_awesome
             </span>
           </div>
@@ -535,7 +535,7 @@ export default function Predictions() {
                 <p className="text-[#ffdad6] text-xs font-mono">{summaryError}</p>
                 <button
                   onClick={() => fetchSummary(activeComponent)}
-                  className="self-start text-[10px] font-mono uppercase tracking-widest text-[#79db8d] border border-[#79db8d]/40 px-2 py-1 rounded hover:bg-[#79db8d]/10 transition-colors"
+                  className="self-start text-[10px] font-mono uppercase tracking-widest text-[#c9bde5] border border-[#c9bde5]/40 px-2 py-1 rounded hover:bg-[#c9bde5]/10 transition-colors"
                 >
                   Retry
                 </button>
@@ -556,12 +556,12 @@ export default function Predictions() {
 
       {/* ── Bottom: replenishment table + model card ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 soft-green-panel rounded border border-[#becabc]/20 overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#becabc]/15 flex items-center justify-between">
-            <h3 className="font-headline font-bold text-[#1b1c15]">
+        <div className="lg:col-span-2 soft-green-panel rounded border border-[#d9d0ea]/20 overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#d9d0ea]/15 flex items-center justify-between">
+            <h3 className="font-headline font-bold text-[#2e2157]">
               Replenishment Recommendations
             </h3>
-            <span className="mono-data text-xs text-[#6f7a6e]">
+            <span className="mono-data text-xs text-[#6b6680]">
               {
                 replenishment.filter((r) => r.component === activeComponent)
                   .length
@@ -571,7 +571,7 @@ export default function Predictions() {
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-[#f5f4e8]">
+              <tr className="bg-[#f3effa]">
                 {[
                   "Group",
                   "Stock",
@@ -582,7 +582,7 @@ export default function Predictions() {
                 ].map((h) => (
                   <th
                     key={h}
-                    className="px-4 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-[#3f493f]"
+                    className="px-4 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-[#4a4466]"
                   >
                     {h}
                   </th>
@@ -597,9 +597,9 @@ export default function Predictions() {
                   return (
                     <tr
                       key={`${r.component}-${r.blood_group}-${i}`}
-                      className={`border-b border-[#becabc]/10 ${i % 2 === 0 ? "bg-white" : "bg-[#fbfaee]"}`}
+                      className={`border-b border-[#d9d0ea]/10 ${i % 2 === 0 ? "bg-white" : "bg-[#f9f6fd]"}`}
                     >
-                      <td className="px-4 py-2.5 font-bold text-[#1b1c15] mono-data text-sm">
+                      <td className="px-4 py-2.5 font-bold text-[#2e2157] mono-data text-sm">
                         {BLOOD_GROUP_SHORT[r.blood_group] ?? r.blood_group}
                       </td>
                       <td className="px-4 py-2.5 mono-data text-xs">
@@ -613,7 +613,7 @@ export default function Predictions() {
                       >
                         {r.expiring_in_7d}
                       </td>
-                      <td className="px-4 py-2.5 mono-data text-xs font-bold text-[#006d30]">
+                      <td className="px-4 py-2.5 mono-data text-xs font-bold text-[#6B4A98]">
                         {r.recommended_order}
                       </td>
                       <td className="px-4 py-2.5">
@@ -631,7 +631,7 @@ export default function Predictions() {
                 <tr>
                   <td
                     colSpan={6}
-                    className="px-4 py-8 text-center text-[#6f7a6e] text-sm"
+                    className="px-4 py-8 text-center text-[#6b6680] text-sm"
                   >
                     No replenishment data for {activeComponent}
                   </td>
@@ -642,7 +642,7 @@ export default function Predictions() {
         </div>
 
         {/* Model info card */}
-        <div className="bg-[#1b1c15] p-8 rounded relative overflow-hidden group">
+        <div className="bg-[#2e2157] p-8 rounded relative overflow-hidden group">
           <div className="absolute -right-12 -top-12 w-48 h-48 bg-white/5 rounded-full blur-3xl group-hover:bg-white/10 transition-all" />
           <h3 className="font-headline text-lg font-bold mb-1 relative z-10 text-white">
             Model Intelligence
@@ -656,7 +656,7 @@ export default function Predictions() {
               <p className="text-[10px] font-mono uppercase tracking-widest text-white/50 mb-1">
                 Algorithms
               </p>
-              <p className="mono-data text-sm font-bold uppercase text-[#79db8d]">
+              <p className="mono-data text-sm font-bold uppercase text-[#c9bde5]">
                 {models || "—"}
               </p>
             </div>
@@ -668,7 +668,7 @@ export default function Predictions() {
               </div>
               <div className="w-full h-1 bg-white/20 rounded-full">
                 <div
-                  className="h-full bg-[#79db8d] rounded-full"
+                  className="h-full bg-[#c9bde5] rounded-full"
                   style={{ width: predictions.length > 0 ? "95%" : "0%" }}
                 />
               </div>
@@ -683,7 +683,7 @@ export default function Predictions() {
               </div>
               <div className="w-full h-1 bg-white/20 rounded-full">
                 <div
-                  className="h-full bg-[#79db8d] rounded-full"
+                  className="h-full bg-[#c9bde5] rounded-full"
                   style={{
                     width: `${([...new Set(predictions.map((p) => p.component))].length / 3) * 100}%`,
                   }}

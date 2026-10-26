@@ -16,8 +16,8 @@ interface Alert {
 const SEVERITY_CONFIG: Record<string, { bg: string; text: string; icon: string }> = {
   CRITICAL: { bg: 'bg-[#ffdad6]', text: 'text-[#93000a]', icon: 'emergency' },
   HIGH:     { bg: 'bg-[#ffdad6]/70', text: 'text-[#ba1a1a]', icon: 'warning' },
-  MEDIUM:   { bg: 'bg-[#92f5a4]/20', text: 'text-[#005323]', icon: 'info' },
-  LOW:      { bg: 'bg-[#e4e3d7]', text: 'text-[#585756]', icon: 'check_circle' },
+  MEDIUM:   { bg: 'bg-[#d9cfee]/20', text: 'text-[#492880]', icon: 'info' },
+  LOW:      { bg: 'bg-[#e3dcf2]', text: 'text-[#5b5470]', icon: 'check_circle' },
 }
 
 const SEVERITY_ORDER: Record<string, number> = {
@@ -120,17 +120,17 @@ export default function Alerts() {
     <div className="green-stroke-bg space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.3em] mb-1">
+          <div className="text-[10px] font-mono text-[#6B4A98] uppercase tracking-[0.3em] mb-1">
             System Monitoring
           </div>
-          <h1 className="font-headline text-3xl font-extrabold text-[#1b1c15] tracking-tight">
+          <h1 className="font-headline text-3xl font-extrabold text-[#2e2157] tracking-tight">
             Alerts
           </h1>
         </div>
         <button
           onClick={handleScan}
           disabled={scanning}
-          className="flex items-center gap-2 bg-[#1b1c15] text-white px-4 py-2 text-sm font-bold rounded hover:opacity-90 transition-all disabled:opacity-50"
+          className="flex items-center gap-2 bg-[#2e2157] text-white px-4 py-2 text-sm font-bold rounded hover:opacity-90 transition-all disabled:opacity-50"
         >
           <span className="material-symbols-outlined text-[16px]">search</span>
           {scanning ? 'Scanning...' : 'Run Scan'}
@@ -147,17 +147,17 @@ export default function Alerts() {
           <div className="text-[9px] font-mono text-[#ba1a1a] uppercase tracking-wider mb-1">High</div>
           <div className="mono-data text-2xl font-bold text-[#ba1a1a]">{counts.high}</div>
         </div>
-        <div className="bg-[#92f5a4]/20 border border-[#006d30]/10 rounded p-3">
-          <div className="text-[9px] font-mono text-[#005323] uppercase tracking-wider mb-1">Medium</div>
-          <div className="mono-data text-2xl font-bold text-[#005323]">{counts.medium}</div>
+        <div className="bg-[#d9cfee]/20 border border-[#6B4A98]/10 rounded p-3">
+          <div className="text-[9px] font-mono text-[#492880] uppercase tracking-wider mb-1">Medium</div>
+          <div className="mono-data text-2xl font-bold text-[#492880]">{counts.medium}</div>
         </div>
-        <div className="soft-green-panel border border-[#becabc]/30 rounded p-3">
-          <div className="text-[9px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">Active</div>
-          <div className="mono-data text-2xl font-bold text-[#1b1c15]">{counts.active}</div>
+        <div className="soft-green-panel border border-[#d9d0ea]/30 rounded p-3">
+          <div className="text-[9px] font-mono text-[#4a4466] uppercase tracking-wider mb-1">Active</div>
+          <div className="mono-data text-2xl font-bold text-[#2e2157]">{counts.active}</div>
         </div>
-        <div className="soft-green-panel border border-[#becabc]/30 rounded p-3">
-          <div className="text-[9px] font-mono text-[#6f7a6e] uppercase tracking-wider mb-1">Resolved</div>
-          <div className="mono-data text-2xl font-bold text-[#585756]">{counts.resolved}</div>
+        <div className="soft-green-panel border border-[#d9d0ea]/30 rounded p-3">
+          <div className="text-[9px] font-mono text-[#6b6680] uppercase tracking-wider mb-1">Resolved</div>
+          <div className="mono-data text-2xl font-bold text-[#5b5470]">{counts.resolved}</div>
         </div>
       </div>
 
@@ -169,33 +169,33 @@ export default function Alerts() {
               key={f}
               onClick={() => setFilter(f)}
               className={`px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-wider rounded transition-colors ${
-                filter === f ? 'bg-[#1b1c15] text-white' : 'border border-[#becabc] text-[#3f493f] hover:bg-[#f5f4e8]'
+                filter === f ? 'bg-[#2e2157] text-white' : 'border border-[#d9d0ea] text-[#4a4466] hover:bg-[#f3effa]'
               }`}
             >
               {f === 'active' ? 'Active Only' : 'All Alerts'}
             </button>
           ))}
         </div>
-        <div className="text-[10px] mono-data text-[#6f7a6e]">
+        <div className="text-[10px] mono-data text-[#6b6680]">
           Showing {sortedAlerts.length} of {alerts.length}
         </div>
       </div>
 
       {/* Alert list */}
       {loading ? (
-        <div className="h-32 flex items-center justify-center text-[#6f7a6e] text-sm">Loading...</div>
+        <div className="h-32 flex items-center justify-center text-[#6b6680] text-sm">Loading...</div>
       ) : sortedAlerts.length === 0 ? (
-        <div className="bg-[#92f5a4]/20 border border-[#006d30]/20 rounded p-8 text-center">
-          <span className="material-symbols-outlined text-[#006d30] text-3xl mb-2 block">check_circle</span>
-          <div className="text-[#005323] font-medium">All clear — no {filter === 'active' ? 'active' : ''} alerts</div>
+        <div className="bg-[#d9cfee]/20 border border-[#6B4A98]/20 rounded p-8 text-center">
+          <span className="material-symbols-outlined text-[#6B4A98] text-3xl mb-2 block">check_circle</span>
+          <div className="text-[#492880] font-medium">All clear — no {filter === 'active' ? 'active' : ''} alerts</div>
         </div>
       ) : (
-        <div className="soft-green-panel border border-[#becabc]/30 rounded overflow-hidden">
-          <div className="sticky top-0 z-10 flex items-center justify-between bg-[#f5f4e8] border-b border-[#becabc]/30 px-3 py-2">
-            <div className="text-[9px] font-mono uppercase tracking-[0.22em] text-[#3f493f]">
+        <div className="soft-green-panel border border-[#d9d0ea]/30 rounded overflow-hidden">
+          <div className="sticky top-0 z-10 flex items-center justify-between bg-[#f3effa] border-b border-[#d9d0ea]/30 px-3 py-2">
+            <div className="text-[9px] font-mono uppercase tracking-[0.22em] text-[#4a4466]">
               Severity-sorted alert queue
             </div>
-            <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#6f7a6e]">
+            <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#6b6680]">
               Newest within severity
             </div>
           </div>
@@ -205,7 +205,7 @@ export default function Alerts() {
             return (
               <div
                 key={alert.id}
-                className={`flex items-start gap-3 border-b border-[#becabc]/20 px-3 py-2.5 ${alert.is_resolved ? 'bg-[#f5f4e8]/70 opacity-60' : cfg.bg}`}
+                className={`flex items-start gap-3 border-b border-[#d9d0ea]/20 px-3 py-2.5 ${alert.is_resolved ? 'bg-[#f3effa]/70 opacity-60' : cfg.bg}`}
               >
                 <span className={`material-symbols-outlined mt-0.5 text-[18px] ${cfg.text}`}>
                   {cfg.icon}
@@ -215,28 +215,28 @@ export default function Alerts() {
                     <span className={`text-[10px] font-mono font-bold uppercase tracking-wider ${cfg.text}`}>
                       {alert.severity}
                     </span>
-                    <span className="text-[10px] font-mono text-[#6f7a6e] uppercase tracking-wider">
+                    <span className="text-[10px] font-mono text-[#6b6680] uppercase tracking-wider">
                       {alert.alert_type}
                     </span>
                     {alert.blood_group && (
-                      <span className="text-[10px] font-mono text-[#3f493f]">· {alert.blood_group} {alert.component}</span>
+                      <span className="text-[10px] font-mono text-[#4a4466]">· {alert.blood_group} {alert.component}</span>
                     )}
                   </div>
-                  <p className="text-xs leading-relaxed text-[#1b1c15]">{alert.message}</p>
-                  <div className="mono-data text-[10px] text-[#6f7a6e] mt-1">
+                  <p className="text-xs leading-relaxed text-[#2e2157]">{alert.message}</p>
+                  <div className="mono-data text-[10px] text-[#6b6680] mt-1">
                     {alert.created_at?.slice(0, 16).replace('T', ' ')}
                   </div>
                 </div>
                 {!alert.is_resolved && (
                   <button
                     onClick={() => handleResolve(alert.id)}
-                    className="rounded border border-[#006d30]/20 bg-white/60 px-2 py-1 text-[10px] font-mono font-bold uppercase tracking-wider text-[#006d30] hover:bg-white shrink-0"
+                    className="rounded border border-[#6B4A98]/20 bg-white/60 px-2 py-1 text-[10px] font-mono font-bold uppercase tracking-wider text-[#6B4A98] hover:bg-white shrink-0"
                   >
                     Resolve
                   </button>
                 )}
                 {alert.is_resolved && (
-                  <span className="text-[10px] mono-data text-[#6f7a6e] shrink-0">Resolved</span>
+                  <span className="text-[10px] mono-data text-[#6b6680] shrink-0">Resolved</span>
                 )}
               </div>
             )

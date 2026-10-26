@@ -50,7 +50,7 @@ function toApiDate(value: string) {
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">
+    <label className="block text-[10px] font-mono text-[#4a4466] uppercase tracking-wider mb-1">
       {children}
     </label>
   )
@@ -116,24 +116,24 @@ export default function ManualEntry() {
     <div className="green-stroke-bg space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.3em] mb-1">
+          <div className="text-[10px] font-mono text-[#6B4A98] uppercase tracking-[0.3em] mb-1">
             Inventory Intake
           </div>
-          <h1 className="font-headline text-3xl font-extrabold text-[#1b1c15] tracking-tight">
+          <h1 className="font-headline text-3xl font-extrabold text-[#2e2157] tracking-tight">
             Manual Entry
           </h1>
         </div>
-        <div className="rounded border border-[#becabc]/50 bg-white px-4 py-3">
-          <div className="text-[10px] uppercase tracking-wider text-[#6f7a6e]">Source</div>
-          <div className="mono-data text-sm font-bold text-[#1b1c15]">manual</div>
+        <div className="rounded border border-[#d9d0ea]/50 bg-white px-4 py-3">
+          <div className="text-[10px] uppercase tracking-wider text-[#6b6680]">Source</div>
+          <div className="mono-data text-sm font-bold text-[#2e2157]">manual</div>
         </div>
       </div>
 
       <form onSubmit={submit} className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-6">
-        <div className="soft-green-panel border border-[#becabc]/40 rounded overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#becabc]/25 flex items-center justify-between">
-            <h3 className="font-headline font-bold text-[#1b1c15]">Unit Details</h3>
-            <span className="material-symbols-outlined text-[#006d30]">edit_note</span>
+        <div className="soft-green-panel border border-[#d9d0ea]/40 rounded overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#d9d0ea]/25 flex items-center justify-between">
+            <h3 className="font-headline font-bold text-[#2e2157]">Unit Details</h3>
+            <span className="material-symbols-outlined text-[#6B4A98]">edit_note</span>
           </div>
 
           <div className="p-6 space-y-6">
@@ -143,7 +143,7 @@ export default function ManualEntry() {
                 <input
                   value={form.sno}
                   onChange={(e) => setValue('sno', e.target.value)}
-                  className="w-full bg-[#fbfaee] border border-[#becabc]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#006d30]"
+                  className="w-full bg-[#f9f6fd] border border-[#d9d0ea]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#6B4A98]"
                 />
               </div>
               <div>
@@ -151,7 +151,7 @@ export default function ManualEntry() {
                 <input
                   value={form.unit_no}
                   onChange={(e) => setValue('unit_no', e.target.value)}
-                  className="w-full bg-[#fbfaee] border border-[#becabc]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#006d30]"
+                  className="w-full bg-[#f9f6fd] border border-[#d9d0ea]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#6B4A98]"
                 />
               </div>
               <div>
@@ -160,7 +160,7 @@ export default function ManualEntry() {
                   value={form.segment_no}
                   onChange={(e) => setValue('segment_no', e.target.value)}
                   placeholder="N/A"
-                  className="w-full bg-[#fbfaee] border border-[#becabc]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#006d30]"
+                  className="w-full bg-[#f9f6fd] border border-[#d9d0ea]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#6B4A98]"
                 />
               </div>
             </div>
@@ -171,7 +171,7 @@ export default function ManualEntry() {
                 <select
                   value={form.blood_group}
                   onChange={(e) => setValue('blood_group', e.target.value)}
-                  className="w-full bg-[#fbfaee] border border-[#becabc]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#006d30]"
+                  className="w-full bg-[#f9f6fd] border border-[#d9d0ea]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#6B4A98]"
                 >
                   {BLOOD_GROUPS.map((group) => <option key={group}>{group}</option>)}
                 </select>
@@ -181,7 +181,7 @@ export default function ManualEntry() {
                 <select
                   value={form.component}
                   onChange={(e) => setValue('component', e.target.value)}
-                  className="w-full bg-[#fbfaee] border border-[#becabc]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#006d30]"
+                  className="w-full bg-[#f9f6fd] border border-[#d9d0ea]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#6B4A98]"
                 >
                   {COMPONENTS.map((component) => <option key={component}>{component}</option>)}
                 </select>
@@ -194,7 +194,7 @@ export default function ManualEntry() {
                   step="0.1"
                   value={form.quantity_ml}
                   onChange={(e) => setValue('quantity_ml', e.target.value)}
-                  className="w-full bg-[#fbfaee] border border-[#becabc]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#006d30]"
+                  className="w-full bg-[#f9f6fd] border border-[#d9d0ea]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#6B4A98]"
                 />
               </div>
             </div>
@@ -206,7 +206,7 @@ export default function ManualEntry() {
                   type="date"
                   value={form.collection_date}
                   onChange={(e) => setValue('collection_date', e.target.value)}
-                  className="w-full bg-[#fbfaee] border border-[#becabc]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#006d30]"
+                  className="w-full bg-[#f9f6fd] border border-[#d9d0ea]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#6B4A98]"
                 />
               </div>
               <div>
@@ -215,7 +215,7 @@ export default function ManualEntry() {
                   type="time"
                   value={form.collection_time}
                   onChange={(e) => setValue('collection_time', e.target.value)}
-                  className="w-full bg-[#fbfaee] border border-[#becabc]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#006d30]"
+                  className="w-full bg-[#f9f6fd] border border-[#d9d0ea]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#6B4A98]"
                 />
               </div>
               <div>
@@ -224,7 +224,7 @@ export default function ManualEntry() {
                   type="date"
                   value={form.expiry_date}
                   onChange={(e) => setValue('expiry_date', e.target.value)}
-                  className="w-full bg-[#fbfaee] border border-[#becabc]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#006d30]"
+                  className="w-full bg-[#f9f6fd] border border-[#d9d0ea]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#6B4A98]"
                 />
               </div>
             </div>
@@ -235,16 +235,16 @@ export default function ManualEntry() {
                 value={form.notes}
                 onChange={(e) => setValue('notes', e.target.value)}
                 rows={3}
-                className="w-full resize-none bg-[#fbfaee] border border-[#becabc]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#006d30]"
+                className="w-full resize-none bg-[#f9f6fd] border border-[#d9d0ea]/50 rounded px-3 py-2 text-sm outline-none focus:border-[#6B4A98]"
               />
             </div>
           </div>
         </div>
 
         <div className="space-y-4">
-          <div className="soft-green-panel border border-[#becabc]/40 rounded overflow-hidden">
-            <div className="px-5 py-4 border-b border-[#becabc]/25">
-              <h3 className="font-headline font-bold text-[#1b1c15]">Screening</h3>
+          <div className="soft-green-panel border border-[#d9d0ea]/40 rounded overflow-hidden">
+            <div className="px-5 py-4 border-b border-[#d9d0ea]/25">
+              <h3 className="font-headline font-bold text-[#2e2157]">Screening</h3>
             </div>
             <div className="p-5 space-y-3">
               {([
@@ -255,11 +255,11 @@ export default function ManualEntry() {
                 ['VDRL', 'vdrl'],
               ] as [string, keyof ManualForm][]).map(([label, key]) => (
                 <div key={key} className="flex items-center justify-between gap-4">
-                  <span className="text-sm font-medium text-[#3f493f]">{label}</span>
+                  <span className="text-sm font-medium text-[#4a4466]">{label}</span>
                   <select
                     value={form[key]}
                     onChange={(e) => setValue(key, e.target.value)}
-                    className="bg-[#fbfaee] border border-[#becabc]/50 rounded px-3 py-1.5 text-sm outline-none focus:border-[#006d30]"
+                    className="bg-[#f9f6fd] border border-[#d9d0ea]/50 rounded px-3 py-1.5 text-sm outline-none focus:border-[#6B4A98]"
                   >
                     {SCREENING.map((value) => <option key={value}>{value}</option>)}
                   </select>
@@ -269,11 +269,11 @@ export default function ManualEntry() {
           </div>
 
           {savedUnitId && (
-            <div className="bg-[#f1fff1] border border-[#006d30]/25 rounded p-4 flex items-start gap-3">
-              <span className="material-symbols-outlined text-[#006d30]">check_circle</span>
+            <div className="bg-[#f6f2fc] border border-[#6B4A98]/25 rounded p-4 flex items-start gap-3">
+              <span className="material-symbols-outlined text-[#6B4A98]">check_circle</span>
               <div>
-                <div className="text-sm font-bold text-[#005323]">Entry saved</div>
-                <div className="mono-data text-[11px] text-[#6f7a6e] mt-1">{savedUnitId}</div>
+                <div className="text-sm font-bold text-[#492880]">Entry saved</div>
+                <div className="mono-data text-[11px] text-[#6b6680] mt-1">{savedUnitId}</div>
               </div>
             </div>
           )}
@@ -285,11 +285,11 @@ export default function ManualEntry() {
             </div>
           )}
 
-          <div className="soft-green-panel border border-[#becabc]/40 rounded p-5 space-y-3">
+          <div className="soft-green-panel border border-[#d9d0ea]/40 rounded p-5 space-y-3">
             <button
               type="submit"
               disabled={saving || !ready}
-              className="w-full inline-flex items-center justify-center gap-2 bg-[#006d30] text-white px-5 py-3 text-sm font-bold rounded hover:bg-[#005323] active:scale-[0.99] transition-all disabled:opacity-40 disabled:active:scale-100"
+              className="w-full inline-flex items-center justify-center gap-2 bg-[#6B4A98] text-white px-5 py-3 text-sm font-bold rounded hover:bg-[#492880] active:scale-[0.99] transition-all disabled:opacity-40 disabled:active:scale-100"
             >
               <span className="material-symbols-outlined text-[18px]">{saving ? 'sync' : 'save'}</span>
               {saving ? 'Saving...' : 'Save Entry'}
@@ -298,7 +298,7 @@ export default function ManualEntry() {
               type="button"
               onClick={reset}
               disabled={saving}
-              className="w-full inline-flex items-center justify-center gap-2 border border-[#becabc] text-[#1b1c15] px-5 py-2.5 text-sm font-bold rounded hover:bg-[#f5f4e8] transition-all disabled:opacity-40"
+              className="w-full inline-flex items-center justify-center gap-2 border border-[#d9d0ea] text-[#2e2157] px-5 py-2.5 text-sm font-bold rounded hover:bg-[#f3effa] transition-all disabled:opacity-40"
             >
               <span className="material-symbols-outlined text-[18px]">restart_alt</span>
               Reset
