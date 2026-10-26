@@ -1,40 +1,40 @@
 @import "tailwindcss";
 
 @theme {
-  --color-surface: #fbfaee;
-  --color-surface-dim: #dbdbcf;
-  --color-surface-bright: #fbfaee;
+  --color-surface: #ffffff;
+  --color-surface-dim: #cdcdd3;
+  --color-surface-bright: #ffffff;
   --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f5f4e8;
-  --color-surface-container: #efeee3;
-  --color-surface-container-high: #e9e9dd;
-  --color-surface-container-highest: #e4e3d7;
-  --color-surface-variant: #e4e3d7;
-  --color-background: #fbfaee;
+  --color-surface-container-low: #fafafb;
+  --color-surface-container: #ececef;
+  --color-surface-container-high: #e5e5e9;
+  --color-surface-container-highest: #d9d9de;
+  --color-surface-variant: #d9d9de;
+  --color-background: #ffffff;
   --color-on-background: #1b1c15;
   --color-on-surface: #1b1c15;
   --color-on-surface-variant: #3f493f;
   --color-outline: #6f7a6e;
-  --color-outline-variant: #becabc;
+  --color-outline-variant: #9fb0cf;
   --color-primary: #585756;
   --color-on-primary: #ffffff;
-  --color-secondary: #006d30;
+  --color-secondary: #13294b;
   --color-on-secondary: #ffffff;
-  --color-secondary-container: #92f5a4;
-  --color-on-secondary-container: #007233;
-  --color-secondary-fixed: #95f8a7;
-  --color-secondary-fixed-dim: #79db8d;
-  --color-tertiary: #006431;
-  --color-tertiary-container: #008040;
-  --color-on-tertiary-container: #cfffd5;
-  --color-tertiary-fixed: #6dfe9c;
-  --color-tertiary-fixed-dim: #4de082;
-  --color-error: #ba1a1a;
-  --color-error-container: #ffdad6;
+  --color-secondary-container: #c5d5ee;
+  --color-on-secondary-container: #0b1b36;
+  --color-secondary-fixed: #c5d5ee;
+  --color-secondary-fixed-dim: #9db7e0;
+  --color-tertiary: #1a3566;
+  --color-tertiary-container: #1f3d73;
+  --color-on-tertiary-container: #dbe6f7;
+  --color-tertiary-fixed: #9db7e0;
+  --color-tertiary-fixed-dim: #7f9fd3;
+  --color-error: #7a0909;
+  --color-error-container: #e8a099;
   --color-on-error: #ffffff;
-  --color-on-error-container: #93000a;
+  --color-on-error-container: #4a0005;
   --color-inverse-surface: #303129;
-  --color-inverse-on-surface: #f2f1e5;
+  --color-inverse-on-surface: #f7f7f8;
 
   --font-headline: "Manrope", sans-serif;
   --font-body: "Inter", sans-serif;
@@ -44,7 +44,7 @@
 @layer base {
   body {
     font-family: "Inter", sans-serif;
-    background-color: #fbfaee;
+    background-color: #ffffff;
     color: #1b1c15;
     -webkit-font-smoothing: antialiased;
     margin: 0;
@@ -76,16 +76,48 @@
   z-index: -1;
   pointer-events: none;
   background:
-    linear-gradient(135deg, rgba(0, 109, 48, 0.07) 0 1px, transparent 1px 28px),
-    radial-gradient(circle at 12% 8%, rgba(0, 109, 48, 0.10), transparent 30%),
-    radial-gradient(circle at 88% 18%, rgba(0, 109, 48, 0.08), transparent 28%),
-    linear-gradient(180deg, rgba(146, 245, 164, 0.12), transparent 42%);
+    radial-gradient(circle at 12% 8%, rgba(160, 200, 250, 0.20), transparent 36%),
+    radial-gradient(circle at 88% 18%, rgba(180, 215, 252, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(200, 225, 252, 0.26), rgba(255, 255, 255, 0) 50%);
   border-radius: 18px;
 }
 
 .soft-green-panel {
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(241, 255, 241, 0.68)),
-    linear-gradient(135deg, rgba(0, 109, 48, 0.08) 0 1px, transparent 1px 22px);
-  box-shadow: inset 0 1px 0 rgba(0, 109, 48, 0.07);
+  background: linear-gradient(145deg, #ffffff, #f8fbff);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1);
 }
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.marquee-track { animation: marquee 35s linear infinite; }
+.marquee:hover .marquee-track { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track { animation: none; }
+}
+
+.reveal { opacity: 0; transition: opacity 0.8s ease, transform 0.8s cubic-bezier(.2,.7,.2,1); }
+.reveal-left  { transform: translateX(-64px); }
+.reveal-right { transform: translateX(64px); }
+.reveal-up    { transform: translateY(40px); }
+.reveal.in    { opacity: 1; transform: none; }
+@keyframes slide-in-right { from { opacity: 0; transform: translateX(80px); } to { opacity: 1; transform: none; } }
+.hero-card-in { animation: slide-in-right 0.9s cubic-bezier(.2,.7,.2,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .hero-card-in { animation: none; }
+}
+
+/* Navy form cards: white labels, white input boxes */
+.form-panel {
+  background: #13294b;
+}
+
+@keyframes attention-in { from { transform: translateX(100%); } to { transform: none; } }
+.attention-panel-in { animation: attention-in 0.28s cubic-bezier(.2,.7,.2,1) both; }
+@media (prefers-reduced-motion: reduce) { .attention-panel-in { animation: none; } }
+
+@keyframes toast-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+.toast-in { animation: toast-in 0.25s cubic-bezier(.2,.7,.2,1) both; }
+@media (prefers-reduced-motion: reduce) { .toast-in { animation: none; } }

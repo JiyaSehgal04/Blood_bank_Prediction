@@ -81,25 +81,25 @@ export default function Inventory() {
 
   const statusBadge = (s: string) => {
     const map: Record<string, string> = {
-      available: 'bg-[#92f5a4]/40 text-[#005323]',
-      issued:    'bg-[#e4e3d7] text-[#585756]',
-      expired:   'bg-[#ffdad6] text-[#93000a]',
+      available: 'bg-[#cdeedb] text-[#0d4a22] ring-1 ring-[#1e7a3e]/40',
+      issued:    'bg-[#d9d9de] text-[#585756]',
+      expired:   'bg-[#e8a099] text-[#4a0005]',
     }
-    return map[s] ?? 'bg-[#efeee3] text-[#3f493f]'
+    return map[s] ?? 'bg-[#ececef] text-[#2a3246]'
   }
 
   const expiryWarning = (expiry: string, currentTimeMs: number) => {
     const days = Math.ceil((new Date(expiry).getTime() - currentTimeMs) / 86400000)
-    if (days < 0) return 'text-[#ba1a1a]'
-    if (days <= 3) return 'text-[#ba1a1a] font-bold'
-    if (days <= 7) return 'text-[#006d30] font-medium'
-    return 'text-[#3f493f]'
+    if (days < 0) return 'text-[#7a0909]'
+    if (days <= 3) return 'text-[#7a0909] font-bold'
+    if (days <= 7) return 'text-[#13294b] font-medium'
+    return 'text-[#2a3246]'
   }
 
   return (
     <div className="green-stroke-bg space-y-6">
       <div>
-        <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.3em] mb-1">
+        <div className="text-[11px] font-mono text-[#13294b] uppercase tracking-[0.3em] mb-1">
           MODULE_01
         </div>
         <h1 className="font-headline text-3xl font-extrabold text-[#1b1c15] tracking-tight">
@@ -114,26 +114,26 @@ export default function Inventory() {
           { label: 'Component', value: component, set: setComponent, opts: COMPONENTS },
         ].map(({ label, value, set, opts }) => (
           <div key={label}>
-            <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">
+            <label className="block text-[11px] font-mono text-[#2a3246] uppercase tracking-wider mb-1">
               {label}
             </label>
             <select
               value={value}
               onChange={(e) => set(e.target.value)}
-              className="bg-white border border-[#becabc]/40 text-[#1b1c15] text-sm px-3 py-2 rounded outline-none focus:border-[#006d30] transition-colors"
+              className="bg-white border border-[#13294b]/50 text-[#1b1c15] text-sm px-3 py-2 rounded outline-none focus:border-[#13294b] transition-colors"
             >
               {opts.map((o) => <option key={o} value={o}>{o || `All ${label}s`}</option>)}
             </select>
           </div>
         ))}
         <div>
-          <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">
+          <label className="block text-[11px] font-mono text-[#2a3246] uppercase tracking-wider mb-1">
             Status
           </label>
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="bg-white border border-[#becabc]/40 text-[#1b1c15] text-sm px-3 py-2 rounded outline-none focus:border-[#006d30] transition-colors"
+            className="bg-white border border-[#13294b]/50 text-[#1b1c15] text-sm px-3 py-2 rounded outline-none focus:border-[#13294b] transition-colors"
           >
             <option value="">All Statuses</option>
             <option value="available">Available</option>
@@ -144,19 +144,19 @@ export default function Inventory() {
       </div>
 
       {/* Count */}
-      <div className="text-xs mono-data text-[#6f7a6e]">
+      <div className="text-xs mono-data text-[#4b5468]">
         {loading ? 'Loading...' : `${units.length} units`}
         {lastUpdated && <span className="ml-3">· Last updated {lastUpdated}</span>}
       </div>
 
       {/* Table */}
-      <div className="soft-green-panel border border-[#becabc]/30 rounded overflow-hidden">
+      <div className="soft-green-panel border border-[#13294b]/50 rounded overflow-hidden">
         <div className="max-h-[58vh] min-h-[260px] overflow-auto">
           <table className="w-full min-w-[760px] text-sm">
             <thead className="sticky top-0 z-10">
-              <tr className="bg-[#f5f4e8] border-b border-[#becabc]/30 shadow-[0_1px_0_rgba(190,202,188,0.25)]">
+              <tr className="bg-[#13294b]">
                 {['Unit ID', 'Blood Group', 'Component', 'Status', 'Expiry Date', 'Qty (mL)'].map((h) => (
-                  <th key={h} className="px-3 py-2 text-left text-[9px] font-mono uppercase tracking-wider text-[#3f493f]">
+                  <th key={h} className="px-3 py-2.5 text-left text-[11px] font-mono font-bold uppercase tracking-wider text-white">
                     {h}
                   </th>
                 ))}
@@ -164,24 +164,24 @@ export default function Inventory() {
             </thead>
             <tbody>
               {units.map((u, i) => (
-                <tr key={u.unit_id} className={`border-b border-[#becabc]/10 hover:bg-[#f5f4e8] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#fbfaee]'}`}>
+                <tr key={u.unit_id} className={`border-b border-[#13294b]/20 hover:bg-[#dbe6f7] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[#e9eff8]'}`}>
                   <td className="px-3 py-2 mono-data text-[11px] text-[#585756] whitespace-nowrap">{u.unit_id}</td>
                   <td className="px-3 py-2 font-medium text-[#1b1c15] whitespace-nowrap">{u.blood_group}</td>
-                  <td className="px-3 py-2 mono-data text-[11px] text-[#3f493f] whitespace-nowrap">{u.component}</td>
+                  <td className="px-3 py-2 mono-data text-[11px] text-[#2a3246] whitespace-nowrap">{u.component}</td>
                   <td className="px-3 py-2 whitespace-nowrap">
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${statusBadge(u.status)}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${statusBadge(u.status)}`}>
                       {u.status}
                     </span>
                   </td>
                   <td className={`px-3 py-2 mono-data text-[11px] whitespace-nowrap ${expiryWarning(u.expiry_date, nowMs)}`}>
                     {u.expiry_date}
                   </td>
-                  <td className="px-3 py-2 mono-data text-[11px] text-[#3f493f] whitespace-nowrap">{u.quantity_ml}</td>
+                  <td className="px-3 py-2 mono-data text-[11px] text-[#2a3246] whitespace-nowrap">{u.quantity_ml}</td>
                 </tr>
               ))}
               {!loading && units.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-[#6f7a6e] text-sm">
+                  <td colSpan={6} className="px-4 py-12 text-center text-[#4b5468] text-sm">
                     No units found
                   </td>
                 </tr>

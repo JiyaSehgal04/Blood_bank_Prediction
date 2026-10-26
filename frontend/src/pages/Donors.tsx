@@ -1,3 +1,4 @@
+import { useToast } from '../context/toast'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import api from '../lib/api'
 import { DATA_CACHE_INVALIDATED_EVENT, readCache, writeCache } from '../lib/sessionCache'
@@ -14,6 +15,7 @@ interface Donor {
 }
 
 export default function Donors() {
+  const toast = useToast()
   const [donors, setDonors] = useState<Donor[]>(() => (
     readCache<Donor[]>('blood_bank_donors_cache:', [])
   ))
@@ -73,6 +75,7 @@ export default function Donors() {
     setSaving(true)
     try {
       await api.post('/donors', form)
+      toast.success('Saved', `${form.name || 'Donor'} registered`)
       setShowForm(false)
       setForm({ name: '', blood_group: 'O Pos', email: '', phone: '', date_of_birth: '', gender: 'M' })
       load()
@@ -87,7 +90,7 @@ export default function Donors() {
     <div className="green-stroke-bg space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.3em] mb-1">
+          <div className="text-[11px] font-mono text-[#13294b] uppercase tracking-[0.3em] mb-1">
             MODULE_03
           </div>
           <h1 className="font-headline text-3xl font-extrabold text-[#1b1c15] tracking-tight">
@@ -96,7 +99,7 @@ export default function Donors() {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 bg-[#1b1c15] text-white px-4 py-2 text-sm font-bold rounded hover:opacity-90 transition-all"
+          className="flex items-center gap-2 bg-[#0b1b36] text-white px-4 py-2 text-sm font-bold rounded hover:opacity-90 transition-all"
         >
           <span className="material-symbols-outlined text-[16px]">person_add</span>
           Add Donor
@@ -105,9 +108,11 @@ export default function Donors() {
 
       {/* Add donor form */}
       {showForm && (
-        <div className="soft-green-panel border border-[#becabc]/30 rounded p-6">
-          <h3 className="font-headline font-bold text-[#1b1c15] mb-4">Register New Donor</h3>
-          <form onSubmit={handleAdd} className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-white border border-[#13294b] rounded overflow-hidden shadow-sm">
+          <div className="px-5 py-3.5 bg-[#13294b]">
+            <h3 className="font-headline text-lg font-bold text-white">Register New Donor</h3>
+          </div>
+          <form onSubmit={handleAdd} className="grid grid-cols-2 lg:grid-cols-3 gap-4 p-5">
             {[
               { label: 'Full Name', key: 'name', type: 'text', req: true },
               { label: 'Email', key: 'email', type: 'email', req: false },
@@ -115,32 +120,32 @@ export default function Donors() {
               { label: 'Date of Birth', key: 'date_of_birth', type: 'date', req: false },
             ].map(({ label, key, type, req }) => (
               <div key={key}>
-                <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">{label}</label>
+                <label className="block text-[11px] font-mono font-bold text-[#13294b] uppercase tracking-wider mb-1">{label}</label>
                 <input
                   type={type}
                   required={req}
                   value={(form as Record<string, string>)[key]}
                   onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#f5f4e8] border border-[#becabc]/40 text-sm text-[#1b1c15] rounded outline-none focus:border-[#006d30] transition-colors"
+                  className="w-full px-3 py-2 bg-white border border-[#13294b]/60 text-sm text-[#0b1b36] rounded outline-none focus:border-[#13294b] transition-colors"
                 />
               </div>
             ))}
             <div>
-              <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">Blood Group</label>
+              <label className="block text-[11px] font-mono font-bold text-[#13294b] uppercase tracking-wider mb-1">Blood Group</label>
               <select
                 value={form.blood_group}
                 onChange={(e) => setForm({ ...form, blood_group: e.target.value })}
-                className="w-full px-3 py-2 bg-[#f5f4e8] border border-[#becabc]/40 text-sm text-[#1b1c15] rounded outline-none focus:border-[#006d30] transition-colors"
+                className="w-full px-3 py-2 bg-white border border-[#13294b]/60 text-sm text-[#0b1b36] rounded outline-none focus:border-[#13294b] transition-colors"
               >
                 {GROUPS.map((g) => <option key={g}>{g}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">Gender</label>
+              <label className="block text-[11px] font-mono font-bold text-[#13294b] uppercase tracking-wider mb-1">Gender</label>
               <select
                 value={form.gender}
                 onChange={(e) => setForm({ ...form, gender: e.target.value })}
-                className="w-full px-3 py-2 bg-[#f5f4e8] border border-[#becabc]/40 text-sm text-[#1b1c15] rounded outline-none focus:border-[#006d30] transition-colors"
+                className="w-full px-3 py-2 bg-white border border-[#13294b]/60 text-sm text-[#0b1b36] rounded outline-none focus:border-[#13294b] transition-colors"
               >
                 <option value="M">Male</option>
                 <option value="F">Female</option>
@@ -149,11 +154,11 @@ export default function Donors() {
             </div>
             <div className="col-span-full flex gap-3 pt-2">
               <button type="submit" disabled={saving}
-                className="bg-[#006d30] text-white px-6 py-2 text-sm font-bold rounded hover:opacity-90 transition-all disabled:opacity-50">
+                className="bg-[#13294b] text-white px-6 py-2 text-sm font-bold rounded hover:bg-[#0b1b36] transition-all disabled:opacity-50">
                 {saving ? 'Saving...' : 'Register Donor'}
               </button>
               <button type="button" onClick={() => setShowForm(false)}
-                className="border border-[#becabc] text-[#3f493f] px-6 py-2 text-sm font-medium rounded hover:bg-[#f5f4e8] transition-colors">
+                className="border-2 border-[#13294b] text-[#13294b] px-6 py-2 text-sm font-bold rounded hover:bg-[#eef3fb] transition-colors">
                 Cancel
               </button>
             </div>
@@ -163,45 +168,49 @@ export default function Donors() {
 
       {/* Search */}
       <div className="relative max-w-sm">
-        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a6e] text-[18px]">search</span>
+        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#4b5468] text-[18px]">search</span>
         <input
           type="search"
           placeholder="Search donors..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 bg-white border border-[#becabc]/40 text-sm text-[#1b1c15] rounded outline-none focus:border-[#006d30] transition-colors"
+          className="w-full pl-9 pr-4 py-2 bg-white border border-[#13294b]/50 text-sm text-[#1b1c15] rounded outline-none focus:border-[#13294b] transition-colors"
         />
       </div>
 
       {/* Table */}
-      <div className="soft-green-panel border border-[#becabc]/30 rounded overflow-hidden">
+      <div className="soft-green-panel border border-[#13294b]/50 rounded overflow-hidden">
+        <div className="px-5 py-3.5 bg-[#13294b] flex items-baseline justify-between">
+          <h3 className="font-headline text-lg font-bold text-white">Registered Donors</h3>
+          <span className="text-[12px] font-semibold text-white/85">{donors.length} donors</span>
+        </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-[#f5f4e8] border-b border-[#becabc]/30">
+            <tr className="bg-[#1f3d73]">
               {['Name', 'Blood Group', 'Phone', 'Donations', 'Last Donation', 'Eligible'].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-[10px] font-mono uppercase tracking-wider text-[#3f493f]">{h}</th>
+                <th key={h} className="px-4 py-3 text-left text-[11px] font-mono font-bold uppercase tracking-wider text-white">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="px-4 py-12 text-center text-[#6f7a6e]">Loading...</td></tr>
+              <tr><td colSpan={6} className="px-4 py-12 text-center text-[#4b5468]">Loading...</td></tr>
             ) : donors.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-12 text-center text-[#6f7a6e]">No donors found</td></tr>
+              <tr><td colSpan={6} className="px-4 py-12 text-center text-[#4b5468]">No donors found</td></tr>
             ) : (
               donors.map((d, i) => (
                 <tr
                   key={d.id ?? `${d.email ?? d.phone ?? d.name}-${d.blood_group}-${i}`}
-                  className={`border-b border-[#becabc]/10 ${i % 2 === 0 ? 'bg-white' : 'bg-[#fbfaee]'}`}
+                  className={`border-b border-[#13294b]/20 ${i % 2 === 0 ? 'bg-white' : 'bg-[#e9eff8]'}`}
                 >
                   <td className="px-4 py-3 font-medium text-[#1b1c15]">{d.name}</td>
                   <td className="px-4 py-3 mono-data text-xs">{d.blood_group}</td>
-                  <td className="px-4 py-3 text-xs text-[#3f493f]">{d.phone || '—'}</td>
+                  <td className="px-4 py-3 text-xs text-[#2a3246]">{d.phone || '—'}</td>
                   <td className="px-4 py-3 mono-data text-xs text-center">{d.total_donations}</td>
-                  <td className="px-4 py-3 mono-data text-xs text-[#6f7a6e]">{d.last_donation_date || '—'}</td>
+                  <td className="px-4 py-3 mono-data text-xs text-[#4b5468]">{d.last_donation_date || '—'}</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                      d.is_eligible ? 'bg-[#92f5a4]/40 text-[#005323]' : 'bg-[#ffdad6] text-[#93000a]'
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold uppercase ${
+                      d.is_eligible ? 'bg-[#cdeedb] text-[#0d4a22] ring-1 ring-[#1e7a3e]/40' : 'bg-[#e8a099] text-[#4a0005]'
                     }`}>
                       {d.is_eligible ? 'Yes' : 'No'}
                     </span>

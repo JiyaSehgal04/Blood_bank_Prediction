@@ -1,3 +1,4 @@
+import { useToast } from '../context/toast'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import api from '../lib/api'
 import { DATA_CACHE_INVALIDATED_EVENT, readCache, writeCache } from '../lib/sessionCache'
@@ -20,6 +21,7 @@ const COMPONENTS = ['WB/PRC', 'FFP', 'PLT']
 const ALLOCATIONS_CACHE_KEY = 'blood_bank_allocations_cache'
 
 export default function Allocate() {
+  const toast = useToast()
   const [allocations, setAllocations] = useState<Allocation[]>(() => (
     readCache<Allocation[]>(ALLOCATIONS_CACHE_KEY, [])
   ))
@@ -78,7 +80,13 @@ export default function Allocate() {
         request_id: form.request_id || undefined,
       }
       const r = await api.post('/allocate', payload)
-      setResult({ status: r.data.status, message: r.data.message ?? 'Allocation processed' })
+      const ok = r.data.status === 'fulfilled' || r.data.status === 'partial'
+      if (ok) {
+        toast.success('Saved', r.data.message ?? 'Allocation recorded')
+        setResult(null)
+      } else {
+        setResult({ status: r.data.status, message: r.data.message ?? 'Allocation processed' })
+      }
       loadAllocations()
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } }
@@ -89,15 +97,15 @@ export default function Allocate() {
   }
 
   const statusBadge = (s: string) => ({
-    fulfilled: 'bg-[#92f5a4]/40 text-[#005323]',
-    partial:   'bg-[#e4e3d7] text-[#585756]',
-    unmet:     'bg-[#ffdad6] text-[#93000a]',
-  }[s] ?? 'bg-[#efeee3] text-[#3f493f]')
+    fulfilled: 'bg-[#cdeedb] text-[#0d4a22] ring-1 ring-[#1e7a3e]/40',
+    partial:   'bg-[#d9d9de] text-[#585756]',
+    unmet:     'bg-[#e8a099] text-[#4a0005]',
+  }[s] ?? 'bg-[#ececef] text-[#2a3246]')
 
   return (
-    <div className="green-stroke-bg space-y-8">
+    <div className="green-stroke-bg flex flex-col gap-5 lg:h-[calc(100vh-8.5rem)]">
       <div>
-        <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.3em] mb-1">
+        <div className="text-[11px] font-mono text-[#13294b] uppercase tracking-[0.3em] mb-1">
           MODULE_02
         </div>
         <h1 className="font-headline text-3xl font-extrabold text-[#1b1c15] tracking-tight">
@@ -105,43 +113,45 @@ export default function Allocate() {
         </h1>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 lg:grid-rows-[minmax(0,1fr)] gap-5 items-start lg:flex-1 lg:min-h-0">
         {/* Allocation Form */}
-        <div className="lg:col-span-2 soft-green-panel border border-[#becabc]/30 rounded p-6">
-          <h3 className="font-headline text-lg font-bold text-[#1b1c15] mb-5">New Request</h3>
-          <form onSubmit={handleAllocate} className="space-y-4">
+        <div className="lg:col-span-2 bg-white border border-[#13294b] rounded overflow-hidden shadow-sm lg:self-start">
+          <div className="bg-[#13294b] px-5 py-3.5">
+            <h3 className="font-headline text-lg font-bold text-white">New Request</h3>
+          </div>
+          <form onSubmit={handleAllocate} className="space-y-3 p-5">
             {[
               { label: 'Request ID', key: 'request_id', type: 'text', placeholder: 'Optional external request ID' },
             ].map(({ label, key, type, placeholder }) => (
               <div key={key}>
-                <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">{label}</label>
+                <label className="block text-[11px] font-mono font-bold text-[#13294b] uppercase tracking-wider mb-1">{label}</label>
                 <input
                   type={type}
                   value={(form as Record<string, string | number>)[key] as string}
                   onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                   placeholder={placeholder}
-                  className="w-full px-3 py-2 bg-[#f5f4e8] border border-[#becabc]/40 text-sm text-[#1b1c15] rounded outline-none focus:border-[#006d30] transition-colors"
+                  className="w-full px-3 py-2 bg-white border border-[#13294b]/60 text-sm text-[#0b1b36] rounded outline-none focus:border-[#13294b] transition-colors"
                 />
               </div>
             ))}
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">Blood Group</label>
+                <label className="block text-[11px] font-mono font-bold text-[#13294b] uppercase tracking-wider mb-1">Blood Group</label>
                 <select
                   value={form.blood_group}
                   onChange={(e) => setForm({ ...form, blood_group: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#f5f4e8] border border-[#becabc]/40 text-sm text-[#1b1c15] rounded outline-none focus:border-[#006d30] transition-colors"
+                  className="w-full px-3 py-2 bg-white border border-[#13294b]/60 text-sm text-[#0b1b36] rounded outline-none focus:border-[#13294b] transition-colors"
                 >
                   {GROUPS.map((g) => <option key={g}>{g}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">Component</label>
+                <label className="block text-[11px] font-mono font-bold text-[#13294b] uppercase tracking-wider mb-1">Component</label>
                 <select
                   value={form.component}
                   onChange={(e) => setForm({ ...form, component: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#f5f4e8] border border-[#becabc]/40 text-sm text-[#1b1c15] rounded outline-none focus:border-[#006d30] transition-colors"
+                  className="w-full px-3 py-2 bg-white border border-[#13294b]/60 text-sm text-[#0b1b36] rounded outline-none focus:border-[#13294b] transition-colors"
                 >
                   {COMPONENTS.map((c) => <option key={c}>{c}</option>)}
                 </select>
@@ -150,20 +160,20 @@ export default function Allocate() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">Units</label>
+                <label className="block text-[11px] font-mono font-bold text-[#13294b] uppercase tracking-wider mb-1">Units</label>
                 <input
                   type="number" min={1} max={20}
                   value={form.units_needed}
                   onChange={(e) => setForm({ ...form, units_needed: +e.target.value })}
-                  className="w-full px-3 py-2 bg-[#f5f4e8] border border-[#becabc]/40 text-sm text-[#1b1c15] rounded outline-none focus:border-[#006d30] transition-colors"
+                  className="w-full px-3 py-2 bg-white border border-[#13294b]/60 text-sm text-[#0b1b36] rounded outline-none focus:border-[#13294b] transition-colors"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">Priority</label>
+                <label className="block text-[11px] font-mono font-bold text-[#13294b] uppercase tracking-wider mb-1">Priority</label>
                 <select
                   value={form.priority}
                   onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#f5f4e8] border border-[#becabc]/40 text-sm text-[#1b1c15] rounded outline-none focus:border-[#006d30] transition-colors"
+                  className="w-full px-3 py-2 bg-white border border-[#13294b]/60 text-sm text-[#0b1b36] rounded outline-none focus:border-[#13294b] transition-colors"
                 >
                   <option value="emergency">Emergency</option>
                   <option value="urgent">Urgent</option>
@@ -174,7 +184,7 @@ export default function Allocate() {
 
             {result && (
               <div className={`px-3 py-2 rounded text-xs flex items-center gap-2 ${
-                result.status === 'fulfilled' ? 'bg-[#92f5a4]/30 text-[#005323]' : 'bg-[#ffdad6] text-[#93000a]'
+                result.status === 'fulfilled' ? 'bg-[#c5d5ee]/30 text-[#0b1b36]' : 'bg-[#e8a099] text-[#4a0005]'
               }`}>
                 <span className="material-symbols-outlined text-[16px]">
                   {result.status === 'fulfilled' ? 'check_circle' : 'error'}
@@ -186,7 +196,7 @@ export default function Allocate() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-[#1b1c15] text-white py-3 text-sm font-bold rounded hover:opacity-90 transition-all disabled:opacity-50"
+              className="w-full bg-[#13294b] text-white py-3 text-sm font-bold rounded hover:bg-[#0b1b36] transition-all disabled:opacity-50"
             >
               {submitting ? 'Processing...' : 'Process Request'}
             </button>
@@ -194,36 +204,38 @@ export default function Allocate() {
         </div>
 
         {/* Recent allocations */}
-        <div className="lg:col-span-3 soft-green-panel border border-[#becabc]/30 rounded overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#becabc]/20">
-            <h3 className="font-headline font-bold text-[#1b1c15]">Recent Allocations</h3>
+        <div className="lg:col-span-3 lg:h-full lg:min-h-0 flex flex-col soft-green-panel border border-[#13294b]/50 rounded overflow-hidden">
+          <div className="shrink-0 px-5 py-3.5 bg-[#13294b] flex items-baseline justify-between">
+            <h3 className="font-headline text-lg font-bold text-white">Recent Allocations</h3>
+            <span className="text-[12px] font-semibold text-white/85">Latest {Math.min(allocations.length, 20)}</span>
           </div>
+          <div className="max-h-[26rem] lg:max-h-none lg:flex-1 lg:min-h-0 overflow-y-auto">
           <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-[#f5f4e8]">
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-[#1f3d73]">
                 {['Request', 'Group', 'Component', 'Units', 'Status', 'Date'].map((h) => (
-                  <th key={h} className="px-4 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-[#3f493f]">{h}</th>
+                  <th key={h} className="px-3 py-2 text-left text-[11px] font-mono font-bold uppercase tracking-wider text-white whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-[#6f7a6e] text-sm">Loading...</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-[#4b5468] text-sm">Loading...</td></tr>
               ) : allocations.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-[#6f7a6e] text-sm">No allocations yet</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-[#4b5468] text-sm">No allocations yet</td></tr>
               ) : (
                 allocations.slice(0, 20).map((a, i) => (
-                  <tr key={a.id ?? i} className={`border-b border-[#becabc]/10 ${i % 2 === 0 ? 'bg-white' : 'bg-[#fbfaee]'}`}>
-                    <td className="px-4 py-2 text-[#1b1c15] font-medium">{a.request_id || '—'}</td>
-                    <td className="px-4 py-2 mono-data text-xs">{a.blood_group}</td>
-                    <td className="px-4 py-2 mono-data text-xs text-[#3f493f]">{a.component}</td>
-                    <td className="px-4 py-2 mono-data text-xs">{a.units_fulfilled}/{a.units_requested}</td>
-                    <td className="px-4 py-2">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusBadge(a.status)}`}>
+                  <tr key={a.id ?? i} className={`border-b border-[#13294b]/20 ${i % 2 === 0 ? 'bg-white' : 'bg-[#e9eff8]'}`}>
+                    <td className="px-3 py-1.5 whitespace-nowrap text-[#1b1c15] font-medium">{a.request_id || '—'}</td>
+                    <td className="px-3 py-1.5 whitespace-nowrap mono-data text-xs">{a.blood_group}</td>
+                    <td className="px-3 py-1.5 whitespace-nowrap mono-data text-xs text-[#2a3246]">{a.component}</td>
+                    <td className="px-3 py-1.5 whitespace-nowrap mono-data text-xs">{a.units_fulfilled}/{a.units_requested}</td>
+                    <td className="px-3 py-1.5 whitespace-nowrap">
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold uppercase ${statusBadge(a.status)}`}>
                         {a.status}
                       </span>
                     </td>
-                    <td className="px-4 py-2 mono-data text-xs text-[#6f7a6e]">
+                    <td className="px-3 py-1.5 whitespace-nowrap mono-data text-xs text-[#4b5468]">
                       {a.created_at?.slice(0, 10)}
                     </td>
                   </tr>
@@ -231,6 +243,7 @@ export default function Allocate() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </div>

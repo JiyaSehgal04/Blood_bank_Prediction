@@ -41,6 +41,13 @@ export async function prefetchAllCaches(apiClient: ApiClient): Promise<void> {
       const { data } = await apiClient.get('/allocations')
       writeCache('blood_bank_allocations_cache', (data as Record<string, unknown>).allocations ?? [])
     },
+    ...['WB/PRC', 'FFP', 'PLT'].map((component) => async () => {
+      const { data } = await apiClient.get(`/predictions/summary?component=${encodeURIComponent(component)}`)
+      const summary = (data as Record<string, unknown>).summary
+      if (typeof summary === 'string' && summary) {
+        writeCache(`blood_bank_summary_cache:${component}`, { text: summary, at: Date.now() })
+      }
+    }),
     async () => {
       const { data } = await apiClient.get('/upload/history')
       writeCache('blood_bank_upload_history_cache', (data as Record<string, unknown>).history ?? [])
@@ -72,6 +79,7 @@ const DATA_CACHE_PREFIXES = [
   'blood_bank_dashboard_stats_updated_at',
   'blood_bank_predictions_cache',
   'blood_bank_replenishment_cache',
+  'blood_bank_summary_cache',
   'blood_bank_inventory_cache',
   'blood_bank_inventory_updated_at',
   'blood_bank_allocations_cache',

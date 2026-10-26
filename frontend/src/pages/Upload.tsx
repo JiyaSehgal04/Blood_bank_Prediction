@@ -1,3 +1,4 @@
+import { useToast } from '../context/toast'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import api from '../lib/api'
 import { invalidateDataCaches, prefetchAllCaches, readCache, writeCache } from '../lib/sessionCache'
@@ -45,13 +46,14 @@ function formatBytes(bytes: number) {
 }
 
 function metricColor(label: string) {
-  if (label === 'Inserted') return '#006d30'
-  if (label === 'Flagged') return '#ba1a1a'
-  if (label === 'Errors') return '#93000a'
-  return '#3f493f'
+  if (label === 'Inserted') return '#13294b'
+  if (label === 'Flagged') return '#7a0909'
+  if (label === 'Errors') return '#4a0005'
+  return '#2a3246'
 }
 
 export default function Upload() {
+  const toast = useToast()
   const [history, setHistory] = useState<UploadRecord[]>(() => (
     readCache<UploadRecord[]>(UPLOAD_HISTORY_CACHE_KEY, [])
   ))
@@ -142,6 +144,7 @@ export default function Upload() {
       invalidateDataCaches()
       prefetchAllCaches(api)
       setResult(r.data)
+      toast.success('Saved', `${r.data.inserted ?? 0} record${r.data.inserted === 1 ? '' : 's'} loaded to the database`)
       setSelectedFile(null)
       if (fileRef.current) fileRef.current.value = ''
       loadHistory(true)
@@ -169,7 +172,7 @@ export default function Upload() {
     <div className="green-stroke-bg space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.3em] mb-1">
+          <div className="text-[11px] font-mono text-[#13294b] uppercase tracking-[0.3em] mb-1">
             Data Ingestion
           </div>
           <h1 className="font-headline text-3xl font-extrabold text-[#1b1c15] tracking-tight">
@@ -182,8 +185,8 @@ export default function Upload() {
             ['Loaded', importedTotal],
             ['Latest', latestBatch?.uploaded_at ? latestBatch.uploaded_at.slice(0, 10) : 'None'],
           ].map(([label, value]) => (
-            <div key={label} className="rounded border border-[#becabc]/50 bg-white px-3 py-2 min-w-[92px]">
-              <div className="text-[10px] uppercase tracking-wider text-[#6f7a6e]">{label}</div>
+            <div key={label} className="rounded border border-[#13294b]/50 bg-white px-3 py-2 min-w-[92px]">
+              <div className="text-[11px] uppercase tracking-wider text-[#4b5468]">{label}</div>
               <div className="mono-data text-sm font-bold text-[#1b1c15]">{value}</div>
             </div>
           ))}
@@ -191,13 +194,13 @@ export default function Upload() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] gap-6">
-        <div className="soft-green-panel border border-[#becabc]/40 rounded overflow-hidden">
-          <div className="px-6 py-5 border-b border-[#becabc]/25 flex items-center justify-between gap-4">
+        <div className="soft-green-panel border border-[#13294b]/50 rounded overflow-hidden">
+          <div className="px-6 py-4 bg-[#13294b] flex items-center justify-between gap-4">
             <div>
-              <h3 className="font-headline font-bold text-[#1b1c15]">Excel to Database</h3>
-              <p className="text-xs text-[#6f7a6e] mt-1">Accepted formats: .xlsx and .csv</p>
+              <h3 className="font-headline text-lg font-bold text-white">Excel to Database</h3>
+              <p className="text-xs text-white/85 mt-0.5">Accepted formats: .xlsx and .csv</p>
             </div>
-            <div className="hidden sm:flex items-center gap-2 text-xs mono-data text-[#006d30]">
+            <div className="hidden sm:flex items-center gap-2 text-xs mono-data text-white">
               <span className="material-symbols-outlined text-[18px]">verified</span>
               Duplicate-safe
             </div>
@@ -207,10 +210,10 @@ export default function Upload() {
             <div
               className={`relative border-2 border-dashed rounded min-h-[240px] flex flex-col items-center justify-center text-center px-6 transition-all ${
                 dragActive
-                  ? 'border-[#006d30] bg-[#92f5a4]/15'
+                  ? 'border-[#13294b] bg-[#c5d5ee]/15'
                   : selectedFile
-                    ? 'border-[#006d30] bg-[#f7fff7]'
-                    : 'border-[#becabc] bg-[#fbfaee] hover:border-[#006d30]'
+                    ? 'border-[#13294b] bg-[#eef3fb]'
+                    : 'border-[#13294b]/60 bg-[#ffffff] hover:border-[#13294b]'
               }`}
               onClick={() => fileRef.current?.click()}
               onDragEnter={(e) => { e.preventDefault(); setDragActive(true) }}
@@ -224,7 +227,7 @@ export default function Upload() {
               }}
             >
               <div className={`h-14 w-14 rounded-full flex items-center justify-center mb-4 ${
-                selectedFile ? 'bg-[#006d30] text-white' : 'bg-white border border-[#becabc]/60 text-[#006d30]'
+                selectedFile ? 'bg-[#13294b] text-white' : 'bg-white border border-[#13294b]/50 text-[#13294b]'
               }`}>
                 <span className="material-symbols-outlined text-[30px]">
                   {selectedFile ? 'description' : 'upload_file'}
@@ -233,7 +236,7 @@ export default function Upload() {
               <div className="font-headline text-lg font-bold text-[#1b1c15]">
                 {selectedFile ? selectedFile.name : 'Drop Excel file here'}
               </div>
-              <div className="text-xs text-[#6f7a6e] mt-2">
+              <div className="text-xs text-[#4b5468] mt-2">
                 {selectedFile ? formatBytes(selectedFile.size) : 'or browse from your computer'}
               </div>
               <input
@@ -246,15 +249,15 @@ export default function Upload() {
             </div>
 
             {selectedFile && (
-              <div className="flex items-center justify-between gap-3 rounded border border-[#becabc]/40 bg-[#f5f4e8] px-4 py-3">
+              <div className="flex items-center justify-between gap-3 rounded border border-[#13294b]/50 bg-[#fafafb] px-4 py-3">
                 <div className="min-w-0">
                   <div className="text-sm font-bold text-[#1b1c15] truncate">{selectedFile.name}</div>
-                  <div className="text-xs text-[#6f7a6e] mono-data">{formatBytes(selectedFile.size)}</div>
+                  <div className="text-xs text-[#4b5468] mono-data">{formatBytes(selectedFile.size)}</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => chooseFile(undefined)}
-                  className="h-9 w-9 rounded border border-[#becabc] text-[#3f493f] hover:bg-white transition-colors"
+                  className="h-9 w-9 rounded border border-[#13294b]/60 text-[#2a3246] hover:bg-white transition-colors"
                   aria-label="Remove selected file"
                 >
                   <span className="material-symbols-outlined text-[18px]">close</span>
@@ -263,28 +266,28 @@ export default function Upload() {
             )}
 
             {result && (
-              <div className="border border-[#006d30]/25 bg-[#f1fff1] rounded p-4">
+              <div className="border border-[#13294b]/25 bg-[#eef3fb] rounded p-4">
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div>
-                    <div className="text-sm font-bold text-[#005323]">{result.message ?? 'Load complete'}</div>
+                    <div className="text-sm font-bold text-[#0b1b36]">{result.message ?? 'Load complete'}</div>
                     {result.batch_id && (
-                      <div className="mono-data text-[10px] text-[#6f7a6e] mt-1">Batch {result.batch_id}</div>
+                      <div className="mono-data text-[11px] text-[#4b5468] mt-1">Batch {result.batch_id}</div>
                     )}
                   </div>
-                  <span className="material-symbols-outlined text-[#006d30]">check_circle</span>
+                  <span className="material-symbols-outlined text-[#13294b]">check_circle</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
                   {resultMetrics.map(([label, value]) => (
-                    <div key={label} className="bg-white border border-[#becabc]/35 rounded px-3 py-3">
+                    <div key={label} className="bg-white border border-[#13294b]/50 rounded px-3 py-3">
                       <div className="mono-data text-xl font-bold" style={{ color: metricColor(label) }}>
                         {value}
                       </div>
-                      <div className="text-[10px] uppercase tracking-wider text-[#6f7a6e]">{label}</div>
+                      <div className="text-[11px] uppercase tracking-wider text-[#4b5468]">{label}</div>
                     </div>
                   ))}
                 </div>
                 {result.warnings && result.warnings.length > 0 && (
-                  <div className="mt-3 rounded border border-[#ba1a1a]/20 bg-[#fff4f2] p-3 text-xs text-[#93000a]">
+                  <div className="mt-3 rounded border border-[#7a0909]/20 bg-[#fff4f2] p-3 text-xs text-[#4a0005]">
                     <div className="font-bold mb-1">Loaded, but follow-up processing needs attention</div>
                     {result.warnings.map((warning, index) => (
                       <div key={index}>{warning}</div>
@@ -295,7 +298,7 @@ export default function Upload() {
             )}
 
             {error && (
-              <div className="bg-[#ffdad6] border border-[#ba1a1a]/20 rounded p-3 text-xs text-[#93000a] flex items-start gap-2">
+              <div className="bg-[#e8a099] border border-[#7a0909]/20 rounded p-3 text-xs text-[#4a0005] flex items-start gap-2">
                 <span className="material-symbols-outlined text-[16px] shrink-0">error</span>
                 <span>{error}</span>
               </div>
@@ -305,7 +308,7 @@ export default function Upload() {
               <button
                 type="submit"
                 disabled={uploading || !selectedFile}
-                className="flex-1 inline-flex items-center justify-center gap-2 bg-[#006d30] text-white px-5 py-3 text-sm font-bold rounded hover:bg-[#005323] active:scale-[0.99] transition-all disabled:opacity-40 disabled:active:scale-100"
+                className="flex-1 inline-flex items-center justify-center gap-2 bg-[#13294b] text-white px-5 py-3 text-sm font-bold rounded hover:bg-[#0b1b36] active:scale-[0.99] transition-all disabled:opacity-40 disabled:active:scale-100"
               >
                 <span className="material-symbols-outlined text-[18px]">
                   {busyAction === 'upload' ? 'sync' : 'database_upload'}
@@ -317,9 +320,11 @@ export default function Upload() {
         </div>
 
         <div className="space-y-4">
-          <div className="soft-green-panel border border-[#becabc]/40 rounded p-5">
-            <h3 className="font-headline font-bold text-[#1b1c15] mb-4">Pipeline</h3>
-            <div className="space-y-3">
+          <div className="soft-green-panel border border-[#13294b]/50 rounded overflow-hidden">
+            <div className="px-5 py-3.5 bg-[#13294b]">
+              <h3 className="font-headline text-lg font-bold text-white">Pipeline</h3>
+            </div>
+            <div className="space-y-3 p-5">
               {[
                 ['upload_file', 'Read file', selectedFile ? 'Ready' : 'Waiting'],
                 ['rule', 'Clean rows', result ? `${result.flagged} flagged` : 'Automatic'],
@@ -328,31 +333,33 @@ export default function Upload() {
               ].map(([icon, label, value], index) => (
                 <div key={label} className="flex items-center gap-3">
                   <div className={`h-9 w-9 rounded flex items-center justify-center border ${
-                    result || index === 0 ? 'border-[#006d30]/30 text-[#006d30] bg-[#92f5a4]/15' : 'border-[#becabc]/50 text-[#6f7a6e] bg-[#fbfaee]'
+                    result || index === 0 ? 'border-[#13294b]/30 text-[#13294b] bg-[#c5d5ee]/15' : 'border-[#13294b]/50 text-[#4b5468] bg-[#ffffff]'
                   }`}>
                     <span className="material-symbols-outlined text-[18px]">{icon}</span>
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-bold text-[#1b1c15]">{label}</div>
-                    <div className="text-xs text-[#6f7a6e]">{value}</div>
+                    <div className="text-xs text-[#4b5468]">{value}</div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="soft-green-panel border border-[#becabc]/40 rounded p-5">
-            <h3 className="font-headline font-bold text-[#1b1c15] mb-3">System Info</h3>
-            <div className="space-y-2 text-xs">
+          <div className="soft-green-panel border border-[#13294b]/50 rounded overflow-hidden">
+            <div className="px-5 py-3.5 bg-[#13294b]">
+              <h3 className="font-headline text-lg font-bold text-white">System Info</h3>
+            </div>
+            <div className="space-y-2 p-5 text-xs">
               {([
                 ['API Base', 'http://localhost:5001'],
                 ['Database', 'Supabase PostgreSQL'],
                 ['Dedup Key', 'S.No + Segment + Component'],
                 ['Formats', '.xlsx · .csv'],
               ] as [string, string][]).map(([k, v]) => (
-                <div key={k} className="flex justify-between items-start gap-4 py-1.5 border-b border-[#becabc]/20 last:border-b-0">
-                  <span className="text-[#3f493f] font-medium shrink-0">{k}</span>
-                  <span className="mono-data text-[#6f7a6e] text-right">{v}</span>
+                <div key={k} className="flex justify-between items-start gap-4 py-1.5 border-b border-[#13294b]/20 last:border-b-0">
+                  <span className="text-[#2a3246] font-medium shrink-0">{k}</span>
+                  <span className="mono-data text-[#4b5468] text-right">{v}</span>
                 </div>
               ))}
             </div>
@@ -360,26 +367,26 @@ export default function Upload() {
         </div>
       </div>
 
-      <div className="soft-green-panel border border-[#becabc]/40 rounded overflow-hidden">
-        <div className="px-4 py-3 border-b border-[#becabc]/20 flex items-center justify-between">
-          <h3 className="font-headline font-bold text-[#1b1c15]">Upload History</h3>
-          <span className="mono-data text-xs text-[#6f7a6e]">{history.length} batches</span>
+      <div className="soft-green-panel border border-[#13294b]/50 rounded overflow-hidden">
+        <div className="px-5 py-3.5 bg-[#13294b] flex items-center justify-between">
+          <h3 className="font-headline text-lg font-bold text-white">Upload History</h3>
+          <span className="mono-data text-xs font-semibold text-white/85">{history.length} batches</span>
         </div>
         {loading ? (
-          <div className="px-4 py-6 text-center text-[#6f7a6e] text-sm mono-data animate-pulse">
+          <div className="px-4 py-6 text-center text-[#4b5468] text-sm mono-data animate-pulse">
             Loading...
           </div>
         ) : history.length === 0 ? (
-          <div className="px-4 py-6 text-center text-[#6f7a6e] text-sm">
+          <div className="px-4 py-6 text-center text-[#4b5468] text-sm">
             No upload batches yet
           </div>
         ) : (
           <div className="max-h-[280px] overflow-auto">
             <table className="w-full text-sm min-w-[760px]">
               <thead className="sticky top-0 z-10">
-                <tr className="bg-[#f5f4e8]">
+                <tr className="bg-[#1f3d73]">
                   {['Batch ID', 'Source', 'Filename', 'Total', 'Inserted', 'Dupes', 'Flagged', 'Errors', 'Date'].map((h) => (
-                    <th key={h} className="px-3 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-[#3f493f] whitespace-nowrap">
+                    <th key={h} className="px-3 py-2.5 text-left text-[11px] font-mono font-bold uppercase tracking-wider text-white whitespace-nowrap">
                       {h}
                     </th>
                   ))}
@@ -387,20 +394,20 @@ export default function Upload() {
               </thead>
               <tbody>
                 {history.map((h, i) => (
-                  <tr key={h.id ?? i} className={`border-b border-[#becabc]/10 ${i % 2 === 0 ? 'bg-white' : 'bg-[#fbfaee]'}`}>
-                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#6f7a6e] whitespace-nowrap" title={h.batch_id}>
+                  <tr key={h.id ?? i} className={`border-b border-[#13294b]/20 ${i % 2 === 0 ? 'bg-white' : 'bg-[#e9eff8]'}`}>
+                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#4b5468] whitespace-nowrap" title={h.batch_id}>
                       {h.batch_id?.slice(0, 16)}...
                     </td>
-                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#3f493f] whitespace-nowrap">{h.source}</td>
+                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#2a3246] whitespace-nowrap">{h.source}</td>
                     <td className="px-3 py-1.5 text-xs text-[#1b1c15] max-w-[180px] truncate" title={h.filename}>
                       {h.filename}
                     </td>
-                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#6f7a6e]">{h.total_rows ?? '-'}</td>
-                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#006d30] font-bold">{h.inserted}</td>
+                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#4b5468]">{h.total_rows ?? '-'}</td>
+                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#13294b] font-bold">{h.inserted}</td>
                     <td className="px-3 py-1.5 mono-data text-[11px] text-[#585756]">{h.duplicates}</td>
-                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#ba1a1a]">{h.flagged}</td>
-                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#93000a]">{h.errors ?? 0}</td>
-                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#6f7a6e] whitespace-nowrap">
+                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#7a0909]">{h.flagged}</td>
+                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#4a0005]">{h.errors ?? 0}</td>
+                    <td className="px-3 py-1.5 mono-data text-[11px] text-[#4b5468] whitespace-nowrap">
                       {(h.uploaded_at ?? '').slice(0, 10)}
                     </td>
                   </tr>
