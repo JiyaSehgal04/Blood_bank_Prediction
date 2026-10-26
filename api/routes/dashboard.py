@@ -11,6 +11,7 @@ from flask import Blueprint, jsonify
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from db.supabase_client import get_client
 from services.expiry_sweep import maybe_sweep
+from shared.screening import SCREENING_COLUMNS, is_screening_positive
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/api")
 FETCH_PAGE_SIZE = 1000
@@ -73,6 +74,16 @@ def _split_by_expiry(rows: list, today: date) -> tuple:
     return in_date, past_due
 
 
+def _split_stock(rows: list, today: date) -> tuple:
+    """Split 'available' rows into (usable, past_due, quarantined).
+
+    Quarantined = in date but a screening test is positive: not issuable, so not stock."""
+    in_date, past_due = _split_by_expiry(rows, today)
+    usable = [r for r in in_date if not is_screening_positive(r)]
+    quarantined = [r for r in in_date if is_screening_positive(r)]
+    return usable, past_due, quarantined
+
+
 def _group_component_matrix(rows: list) -> dict:
     """{blood_group: {component: units}} for the stock heat-map."""
     matrix: dict = {}
@@ -109,7 +120,7 @@ def dashboard_stats():
     # ── inventory counts ──────────────────────────────────────────────────────
     inv_rows = _fetch_query(
         lambda: client.table("blood_inventory").select(
-            "blood_group,component,status,expiry_date,quantity_ml"
+            "blood_group,component,status,expiry_date,quantity_ml," + SCREENING_COLUMNS
         )
     )
 
@@ -117,7 +128,7 @@ def dashboard_stats():
     all_available  = [r for r in inv_rows if r["status"] == "available"]
     # Only in-date units are stock; past-due units still marked available are reported
     # separately (and are cleaned up by the expiry sweep).
-    available_rows, past_due_rows = _split_by_expiry(all_available, date.today())
+    available_rows, past_due_rows, quarantined_rows = _split_stock(all_available, date.today())
     total_available= len(available_rows)
     total_volume   = sum(float(r.get("quantity_ml") or 0) for r in available_rows)
 
@@ -187,6 +198,7 @@ def dashboard_stats():
             "by_group_component": _group_component_matrix(available_rows),
             "expiry_buckets": _expiry_buckets(all_available, date.today()),
             "past_due":       len(past_due_rows),
+            "quarantined":    len(quarantined_rows),
         },
         "donors": {
             "total":    total_donors,

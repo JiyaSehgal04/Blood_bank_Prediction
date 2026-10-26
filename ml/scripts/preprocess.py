@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from db.supabase_client   import get_client
 from shared.cleaning_utils import VALID_BLOOD_GROUPS, clean_raw_rows
+from shared.screening import SCREENING_COLUMNS, is_screening_positive
 
 # ── Indian blood type distribution (population demand baseline) ───────────────
 INDIAN_BLOOD_DIST = {
@@ -98,7 +99,7 @@ class FeaturePipeline:
         rows = self._fetch_query(
             lambda: (
                 self._get_client().table("blood_inventory")
-                .select("blood_group,component")
+                .select("blood_group,component," + SCREENING_COLUMNS)
                 .eq("status", "available")
                 .gte("expiry_date", date.today().isoformat())   # past-due units are not stock
                 .lte("expiry_date", cutoff)
@@ -106,6 +107,8 @@ class FeaturePipeline:
         )
         counts = {}
         for r in rows:
+            if is_screening_positive(r):
+                continue   # quarantined units cannot be issued, so they are not stock
             key = (r["blood_group"], r["component"])
             counts[key] = counts.get(key, 0) + 1
         return counts
@@ -115,13 +118,15 @@ class FeaturePipeline:
         rows = self._fetch_query(
             lambda: (
                 self._get_client().table("blood_inventory")
-                .select("blood_group,component")
+                .select("blood_group,component," + SCREENING_COLUMNS)
                 .eq("status", "available")
                 .gte("expiry_date", date.today().isoformat())   # past-due units are not stock
             )
         )
         counts = {}
         for r in rows:
+            if is_screening_positive(r):
+                continue   # quarantined units cannot be issued, so they are not stock
             key = (r["blood_group"], r["component"])
             counts[key] = counts.get(key, 0) + 1
         return counts

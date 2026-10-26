@@ -88,6 +88,8 @@ def test_scan_endpoint_runs_the_expiry_sweep_first(monkeypatch):
     monkeypatch.setattr(alerts_routes, "sweep_expired_units",
                         lambda client, **kw: order.append("sweep") or {"expired": 7, "wastage_logged": 7, "dry_run": False})
 
+    monkeypatch.setattr(alerts_routes, "resolve_stale_alerts", lambda client, **kw: {"resolved": 0})
+
     class FakeAlerts:
         def run_stock_alerts(self):
             order.append("stock")

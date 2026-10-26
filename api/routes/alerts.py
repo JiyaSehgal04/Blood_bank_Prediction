@@ -14,6 +14,7 @@ from services.alert_service  import AlertService
 from services.expiry_service import ExpiryService
 from models.multi_list       import MultiListInventory
 from services.expiry_sweep   import sweep_expired_units
+from services.alert_hygiene  import resolve_stale_alerts
 from db.supabase_client      import get_client
 
 alerts_bp = Blueprint("alerts", __name__, url_prefix="/api")
@@ -53,6 +54,8 @@ def run_scan():
     """Trigger a full expiry sweep + stock + expiry scan and generate alerts."""
     # 1. Move every past-due unit out of stock first, so the alerts below see real stock.
     sweep_result = sweep_expired_units(get_client())
+    # 2. Close alerts that are no longer true (retired model, superseded daily alerts).
+    hygiene_result = resolve_stale_alerts(get_client())
 
     # Stock alerts
     alert_svc  = AlertService()
@@ -66,6 +69,7 @@ def run_scan():
 
     return jsonify({
         "expiry_sweep": sweep_result,
+        "alerts_cleanup": hygiene_result,
         "stock_scan":   stock_result,
         "expiry_scan":  expiry_result,
     }), 200

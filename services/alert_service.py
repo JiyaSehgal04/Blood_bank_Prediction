@@ -26,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from db.supabase_client import get_client
 from shared.cleaning_utils import VALID_BLOOD_GROUPS
+from shared.screening import is_screening_positive
 
 ALERTS_TABLE = "alerts"
 INV_TABLE    = "blood_inventory"
@@ -73,6 +74,8 @@ class AlertService:
         # stock counts per (blood_group, component)
         stock: dict[tuple, int] = {}
         for row in available:
+            if is_screening_positive(row):
+                continue   # quarantined: cannot be issued, so it is not stock (still alerted below)
             k = (row["blood_group"], row["component"])
             stock[k] = stock.get(k, 0) + 1
 

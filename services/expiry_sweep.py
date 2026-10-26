@@ -79,7 +79,35 @@ def sweep_expired_units(client: Any, today: Optional[date] = None, dry_run: bool
     for i in range(0, len(new_rows), BATCH_SIZE):
         client.table(WASTAGE_TABLE).insert(new_rows[i : i + BATCH_SIZE]).execute()
     result["wastage_logged"] = len(new_rows)
+    result["alerts_raised"] = _raise_summary_alerts(client, units)
     return result
+
+
+def _raise_summary_alerts(client: Any, units: List[dict]) -> int:
+    """One alert per (blood group, component) - not one per unit - so a big sweep stays readable."""
+    groups: Dict[tuple, List[dict]] = {}
+    for u in units:
+        groups.setdefault((u["blood_group"], u["component"]), []).append(u)
+    alerts = []
+    for (group, component), items in sorted(groups.items()):
+        oldest = min(u["expiry_date"] for u in items)
+        alerts.append({
+            "alert_type": "unit_expired",
+            "blood_group": group,
+            "component": component,
+            "severity": "HIGH",
+            "message": f"{len(items)} unit{'s' if len(items) != 1 else ''} of {group} {component} "
+                       f"passed expiry and were removed from stock (oldest expiry {oldest})",
+            "is_resolved": False,
+        })
+    if not alerts:
+        return 0
+    try:
+        client.table("alerts").insert(alerts).execute()
+    except Exception as exc:  # an alert failure must never undo the sweep
+        print(f"Warning: expiry summary alerts failed: {exc}")
+        return 0
+    return len(alerts)
 
 
 def maybe_sweep(client: Any, now: Optional[float] = None) -> Optional[Dict[str, Any]]:
