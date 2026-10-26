@@ -62,3 +62,27 @@ def test_status_endpoint_reports_per_component_history(client):
         body = client.get("/api/predictions/status", headers=_auth(client)).get_json()
 
     assert body["components"]["WB/PRC"]["status"] == "insufficient_data"
+
+
+# ── the AI is handed computed stock facts instead of being left to read the table ──
+
+def test_stock_facts_state_zero_and_nonzero_groups_exactly():
+    from api.routes.predictions import _stock_facts
+
+    plan = [
+        {"blood_group": "O Neg", "current_stock": 0, "recommended_order": 5},
+        {"blood_group": "A Pos", "current_stock": 3, "recommended_order": 2},
+        {"blood_group": "B Pos", "current_stock": 0, "recommended_order": 5},
+    ]
+
+    facts = _stock_facts(plan, "WB/PRC")
+
+    assert "O Neg: 0" in facts and "B Pos: 0" in facts and "A Pos: 3" in facts
+    assert "2 of 3 listed blood groups have no in-date units" in facts
+    assert "Total in-date units listed: 3" in facts
+
+
+def test_stock_facts_handle_an_empty_plan():
+    from api.routes.predictions import _stock_facts
+
+    assert "No stock information" in _stock_facts([], "PLT")

@@ -186,6 +186,20 @@ def _sanitize(value: str, max_len: int = 100) -> str:
     return str(value).replace("\n", " ").replace("\r", "")[:max_len]
 
 
+def _stock_facts(plan: list, component: str) -> str:
+    """Plain, computed stock statement so the AI never has to read numbers out of a table."""
+    if not plan:
+        return f"No stock information is available for {component}."
+    zero = [r for r in plan if not r.get("current_stock")]
+    per_group = ", ".join(f"{_sanitize(r['blood_group'])}: {int(r.get('current_stock') or 0)}" for r in plan)
+    total = sum(int(r.get("current_stock") or 0) for r in plan)
+    return (
+        f"In-date units per blood group ({component}) -> {per_group}. "
+        f"{len(zero)} of {len(plan)} listed blood groups have no in-date units. "
+        f"Total in-date units listed: {total}."
+    )
+
+
 _COMPONENT_NAMES = {
     "WB/PRC": "Whole Blood / Packed Red Blood Cells (WB/PRC)",
     "FFP":    "Fresh Frozen Plasma (FFP)",
@@ -232,7 +246,7 @@ def predictions_summary():
 
     alerts_q = (
         client_db.table("alerts")
-        .select("severity,message,blood_group,component")
+        .select("severity,message,blood_group,component,created_at")
         .eq("is_resolved", False)
         .in_("severity", ["HIGH", "CRITICAL"])
         .limit(20)
@@ -260,6 +274,7 @@ def predictions_summary():
                 f"range {p.get('confidence_low', 0):.1f}–{p.get('confidence_high', 0):.1f} units/day"
             )
     if replenishment:
+        lines.append("\nSTOCK FACTS (exact, computed by the system): " + _stock_facts(replenishment, component or "all components"))
         lines.append("\nORDER RECOMMENDATIONS (in-date stock only):")
         for r in replenishment[:8]:
             if r.get("recommended_order", 0) > 0:
@@ -271,10 +286,13 @@ def predictions_summary():
                     f"basis: {_sanitize(r.get('basis', 'forecast'))})"
                 )
     if alerts:
-        lines.append("\nACTIVE ALERTS:")
+        lines.append(
+            "\nUNRESOLVED ALERTS (raised on the date shown, possibly out of date; if an alert's numbers "
+            "disagree with STOCK FACTS, trust STOCK FACTS and do not repeat the alert's numbers):"
+        )
         for a in alerts[:5]:
             lines.append(
-                f"  [{_sanitize(a['severity'])}] "
+                f"  [{_sanitize(a['severity'])}] raised {_sanitize(str(a.get('created_at') or '')[:10])} "
                 f"{_sanitize(a.get('blood_group', ''))}: "
                 f"{_sanitize(a.get('message', ''), max_len=200)}"
             )
@@ -292,7 +310,9 @@ def predictions_summary():
                         "Write in plain, simple English — avoid technical jargon. "
                         "Be direct and actionable: tell them what needs attention right now and what they should do. "
                         "Use full blood group names (e.g. 'O Positive' not 'O Pos'). "
-                        "Keep it to 3-4 sentences. No bullet points."
+                        "Keep it to 3-4 sentences. No bullet points. "
+                        "Quote stock numbers exactly as written in STOCK FACTS; never estimate or "
+                        "restate a number that is not in the data, and say 'no units' for any group at 0."
                     ),
                 },
                 {
@@ -310,7 +330,7 @@ def predictions_summary():
             # gpt-oss is a reasoning model: hidden reasoning tokens count against this limit,
             # so a small cap leaves the visible answer empty or cut off mid-sentence.
             max_tokens=_SUMMARY_MAX_TOKENS,
-            extra_body={"reasoning_effort": "low"},
+            extra_body={"reasoning_effort": "medium"},
         )
         if not response.choices:
             return jsonify({"error": "Summary unavailable"}), 503
