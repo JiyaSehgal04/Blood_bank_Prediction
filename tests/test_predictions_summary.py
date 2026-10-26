@@ -74,7 +74,8 @@ def test_summary_returns_503_on_groq_error(client):
         .eq.return_value.in_.return_value.limit.return_value.execute.return_value \
         = MagicMock(data=[])
 
-    with patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}), \
+    with patch("api.routes.predictions._SUMMARY_CACHE", {}), \
+         patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}), \
          patch("api.routes.predictions.get_client", return_value=mock_supabase), \
          patch("api.routes.predictions.Groq", side_effect=Exception("network error")):
         res = client.get("/api/predictions/summary", headers=auth_header(client))
