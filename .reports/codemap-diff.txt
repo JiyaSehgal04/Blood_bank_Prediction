@@ -30,7 +30,7 @@ All files are new to the CODEMAPS directory:
 - All other deps match requirements.txt / package.json
 
 ## Architecture Notes
-- Auth is hardcoded (admin:bloodbank2026) — not production-grade
+- Auth: single admin account configured via ADMIN_USERNAME / ADMIN_PASSWORD_HASH (no credentials in source)
 - In-memory session store (_SESSIONS dict) — lost on server restart
 - Frontend has local auth fallback when API is unreachable
 - ML models serialized as .joblib in ml/models/ (not in git)

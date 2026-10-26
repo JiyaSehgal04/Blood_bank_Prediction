@@ -4,6 +4,7 @@ POST /api/auth/login
 """
 
 from flask import Blueprint, request, jsonify
+from werkzeug.security import check_password_hash
 import base64
 import hashlib
 import hmac
@@ -15,10 +16,21 @@ from typing import Optional
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api")
 
-# Simple hardcoded credentials for now (replace with DB-backed auth in prod)
-_USERS = {
-    "admin": hashlib.sha256("bloodbank2026".encode()).hexdigest(),
-}
+# The single admin account comes from the environment (never from source code):
+#   ADMIN_USERNAME        (default "admin")
+#   ADMIN_PASSWORD_HASH   a werkzeug hash, see .env.example for how to create one
+# With no ADMIN_PASSWORD_HASH configured, login is disabled.
+_PROCESS_SECRET = secrets.token_bytes(32)  # last-resort signing key; tokens die with the process
+
+
+def _admin_username() -> str:
+    return (os.environ.get("ADMIN_USERNAME") or "admin").strip()
+
+
+def _admin_password_hash() -> str:
+    return (os.environ.get("ADMIN_PASSWORD_HASH") or "").strip()
+
+
 _SESSIONS: dict[str, str] = {}   # compatibility/debug cache; validation is stateless
 _REVOKED_TOKENS: set[str] = set()
 _TOKEN_TTL_SECONDS = int(os.environ.get("AUTH_TOKEN_TTL_SECONDS", str(24 * 60 * 60)))
@@ -28,8 +40,12 @@ def _auth_secret() -> bytes:
     secret = os.environ.get("AUTH_SECRET")
     if secret:
         return secret.encode()
-    # Stable fallback so tokens survive multi-worker local deployments.
-    return hashlib.sha256(f"blood-bank-auth:{_USERS['admin']}".encode()).digest()
+    # Without AUTH_SECRET, derive the key from the (secret) password hash so tokens survive
+    # multi-worker deployments; it is never derivable from anything in the source code.
+    password_hash = _admin_password_hash()
+    if password_hash:
+        return hashlib.sha256(f"blood-bank-auth:{password_hash}".encode()).digest()
+    return _PROCESS_SECRET
 
 
 def _b64url_encode(data: bytes) -> str:
@@ -88,7 +104,7 @@ def validate_token(token: str) -> Optional[str]:
 
     username = payload.get("sub")
     issued_at = payload.get("iat")
-    if username not in _USERS or not isinstance(issued_at, int):
+    if username != _admin_username() or not isinstance(issued_at, int):
         return None
 
     if _TOKEN_TTL_SECONDS > 0 and time.time() - issued_at > _TOKEN_TTL_SECONDS:
@@ -107,8 +123,14 @@ def login():
     username = (data.get("username") or "").strip()
     password = (data.get("password") or "").strip()
 
-    hashed = hashlib.sha256(password.encode()).hexdigest()
-    if _USERS.get(username) != hashed:
+    password_hash = _admin_password_hash()
+    if not password_hash:
+        return jsonify({"error": "Login is not configured on this server"}), 503
+
+    # Always run the hash check so a wrong username takes as long as a wrong password.
+    password_ok = check_password_hash(password_hash, password)
+    username_ok = hmac.compare_digest(username.encode(), _admin_username().encode())
+    if not (password_ok and username_ok):
         return jsonify({"error": "Invalid credentials"}), 401
 
     token = issue_token(username)

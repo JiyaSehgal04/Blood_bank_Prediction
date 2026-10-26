@@ -88,7 +88,7 @@ Compatibility fallback: if exact group exhausted, tries donor-compatible groups.
 Alert raised on unmet/partial allocation (CRITICAL for emergency, HIGH otherwise).
 
 ## Auth
-Simple hardcoded `admin:bloodbank2026` with SHA256 hash. Login issues an HMAC-signed stateless token so auth works across multiple Gunicorn workers. Set `AUTH_SECRET` in deployed environments; otherwise a stable development fallback is used. Not production-grade.
+Single admin account read from `ADMIN_USERNAME` and `ADMIN_PASSWORD_HASH` (salted werkzeug hash; login is disabled if unset). Login issues an HMAC-signed stateless token so auth works across multiple Gunicorn workers. Set `AUTH_SECRET` in deployed environments; otherwise a stable development fallback is used. Not production-grade.
 
 ## Error Handling Updates (2026-04-26)
 - **predictions_summary()**: Supabase query failures no longer crash endpoint (returns partial data with empty arrays instead of 500)

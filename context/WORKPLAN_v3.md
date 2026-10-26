@@ -249,7 +249,7 @@ Fulfillment rate, wastage rate, stock coverage days, emergency response rate, pr
 
 ## Step 18: Landing Page & Auth
 
-Public landing at `/`. Login at `/login` (admin/bloodbank2026). AuthContext protecting `/dashboard/*`.
+Public landing at `/`. Login at `/login` (admin account set via ADMIN_USERNAME / ADMIN_PASSWORD_HASH). AuthContext protecting `/dashboard/*`.
 
 ## Step 19: Dashboard
 
