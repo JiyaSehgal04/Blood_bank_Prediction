@@ -106,6 +106,11 @@ def _run_post_upload_predictions() -> dict:
         all_preds = predictor.predict_all()
         predictor.run_ml_alerts(predictions=all_preds)
         total = sum(len(p) for p in all_preds.values())
+        try:
+            from api.routes.predictions import invalidate_prediction_caches
+            invalidate_prediction_caches()
+        except Exception:
+            pass  # cache refresh is best-effort and must not fail an upload
         return {
             "predictions_generated": total,
             "prediction_warnings": list(getattr(predictor, "store_errors", [])),

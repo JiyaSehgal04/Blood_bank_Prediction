@@ -55,3 +55,68 @@ def test_upload_totals_use_all_history_rows():
             return Query()
 
     assert dashboard._upload_totals(Client()) == (3, 35)
+
+
+def test_expiry_buckets_group_units_by_days_left():
+    from datetime import date
+
+    today = date(2026, 10, 26)
+    rows = [
+        {"expiry_date": "2026-10-20"},   # already past
+        {"expiry_date": "2026-10-26"},   # today -> 0-3d
+        {"expiry_date": "2026-10-29"},   # 3 days -> 0-3d
+        {"expiry_date": "2026-10-30"},   # 4 days -> 4-7d
+        {"expiry_date": "2026-11-09"},   # 14 days -> 8-14d
+        {"expiry_date": "2026-11-25"},   # 30 days -> 15-30d
+        {"expiry_date": "2027-01-01"},   # 31+ days
+        {"expiry_date": None},           # ignored
+    ]
+
+    buckets = dashboard._expiry_buckets(rows, today)
+
+    assert [(b["label"], b["units"]) for b in buckets] == [
+        ("Past due", 1),
+        ("0–3 days", 2),
+        ("4–7 days", 1),
+        ("8–14 days", 1),
+        ("15–30 days", 1),
+        ("31+ days", 1),
+    ]
+
+
+def test_group_component_matrix_counts_units():
+    rows = [
+        {"blood_group": "O Pos", "component": "PLT"},
+        {"blood_group": "O Pos", "component": "PLT"},
+        {"blood_group": "O Pos", "component": "FFP"},
+        {"blood_group": "A Neg", "component": "WB/PRC"},
+    ]
+
+    assert dashboard._group_component_matrix(rows) == {
+        "O Pos": {"PLT": 2, "FFP": 1},
+        "A Neg": {"WB/PRC": 1},
+    }
+
+
+def test_allocation_summary_reports_fulfilment_and_status_counts():
+    rows = [
+        {"units_requested": 4, "units_fulfilled": 4, "status": "fulfilled"},
+        {"units_requested": 6, "units_fulfilled": 3, "status": "partial"},
+        {"units_requested": 2, "units_fulfilled": 0, "status": "unmet"},
+    ]
+
+    summary = dashboard._allocation_summary(rows)
+
+    assert summary["total_requested"] == 12
+    assert summary["total_fulfilled"] == 7
+    assert summary["fulfillment_rate"] == 58.3
+    assert summary["by_status"] == {"fulfilled": 1, "partial": 1, "unmet": 1}
+
+
+def test_allocation_summary_handles_no_rows():
+    assert dashboard._allocation_summary([]) == {
+        "total_requested": 0,
+        "total_fulfilled": 0,
+        "fulfillment_rate": 0,
+        "by_status": {},
+    }

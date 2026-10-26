@@ -89,59 +89,59 @@ export default function Allocate() {
   }
 
   const statusBadge = (s: string) => ({
-    fulfilled: 'bg-[#d9cfee]/40 text-[#492880]',
-    partial:   'bg-[#e3dcf2] text-[#5b5470]',
+    fulfilled: 'bg-[#92f5a4]/40 text-[#005323]',
+    partial:   'bg-[#e4e3d7] text-[#585756]',
     unmet:     'bg-[#ffdad6] text-[#93000a]',
-  }[s] ?? 'bg-[#efeaf8] text-[#4a4466]')
+  }[s] ?? 'bg-[#efeee3] text-[#3f493f]')
 
   return (
     <div className="green-stroke-bg space-y-8">
       <div>
-        <div className="text-[10px] font-mono text-[#6B4A98] uppercase tracking-[0.3em] mb-1">
+        <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.3em] mb-1">
           MODULE_02
         </div>
-        <h1 className="font-headline text-3xl font-extrabold text-[#2e2157] tracking-tight">
+        <h1 className="font-headline text-3xl font-extrabold text-[#1b1c15] tracking-tight">
           Blood Allocation
         </h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Allocation Form */}
-        <div className="lg:col-span-2 soft-green-panel border border-[#d9d0ea]/30 rounded p-6">
-          <h3 className="font-headline text-lg font-bold text-[#2e2157] mb-5">New Request</h3>
+        <div className="lg:col-span-2 soft-green-panel border border-[#becabc]/30 rounded p-6">
+          <h3 className="font-headline text-lg font-bold text-[#1b1c15] mb-5">New Request</h3>
           <form onSubmit={handleAllocate} className="space-y-4">
             {[
               { label: 'Request ID', key: 'request_id', type: 'text', placeholder: 'Optional external request ID' },
             ].map(({ label, key, type, placeholder }) => (
               <div key={key}>
-                <label className="block text-[10px] font-mono text-[#4a4466] uppercase tracking-wider mb-1">{label}</label>
+                <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">{label}</label>
                 <input
                   type={type}
                   value={(form as Record<string, string | number>)[key] as string}
                   onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                   placeholder={placeholder}
-                  className="w-full px-3 py-2 bg-[#f3effa] border border-[#d9d0ea]/40 text-sm text-[#2e2157] rounded outline-none focus:border-[#6B4A98] transition-colors"
+                  className="w-full px-3 py-2 bg-[#f5f4e8] border border-[#becabc]/40 text-sm text-[#1b1c15] rounded outline-none focus:border-[#006d30] transition-colors"
                 />
               </div>
             ))}
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[10px] font-mono text-[#4a4466] uppercase tracking-wider mb-1">Blood Group</label>
+                <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">Blood Group</label>
                 <select
                   value={form.blood_group}
                   onChange={(e) => setForm({ ...form, blood_group: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#f3effa] border border-[#d9d0ea]/40 text-sm text-[#2e2157] rounded outline-none focus:border-[#6B4A98] transition-colors"
+                  className="w-full px-3 py-2 bg-[#f5f4e8] border border-[#becabc]/40 text-sm text-[#1b1c15] rounded outline-none focus:border-[#006d30] transition-colors"
                 >
                   {GROUPS.map((g) => <option key={g}>{g}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-mono text-[#4a4466] uppercase tracking-wider mb-1">Component</label>
+                <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">Component</label>
                 <select
                   value={form.component}
                   onChange={(e) => setForm({ ...form, component: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#f3effa] border border-[#d9d0ea]/40 text-sm text-[#2e2157] rounded outline-none focus:border-[#6B4A98] transition-colors"
+                  className="w-full px-3 py-2 bg-[#f5f4e8] border border-[#becabc]/40 text-sm text-[#1b1c15] rounded outline-none focus:border-[#006d30] transition-colors"
                 >
                   {COMPONENTS.map((c) => <option key={c}>{c}</option>)}
                 </select>
@@ -150,20 +150,20 @@ export default function Allocate() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[10px] font-mono text-[#4a4466] uppercase tracking-wider mb-1">Units</label>
+                <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">Units</label>
                 <input
                   type="number" min={1} max={20}
                   value={form.units_needed}
                   onChange={(e) => setForm({ ...form, units_needed: +e.target.value })}
-                  className="w-full px-3 py-2 bg-[#f3effa] border border-[#d9d0ea]/40 text-sm text-[#2e2157] rounded outline-none focus:border-[#6B4A98] transition-colors"
+                  className="w-full px-3 py-2 bg-[#f5f4e8] border border-[#becabc]/40 text-sm text-[#1b1c15] rounded outline-none focus:border-[#006d30] transition-colors"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-mono text-[#4a4466] uppercase tracking-wider mb-1">Priority</label>
+                <label className="block text-[10px] font-mono text-[#3f493f] uppercase tracking-wider mb-1">Priority</label>
                 <select
                   value={form.priority}
                   onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#f3effa] border border-[#d9d0ea]/40 text-sm text-[#2e2157] rounded outline-none focus:border-[#6B4A98] transition-colors"
+                  className="w-full px-3 py-2 bg-[#f5f4e8] border border-[#becabc]/40 text-sm text-[#1b1c15] rounded outline-none focus:border-[#006d30] transition-colors"
                 >
                   <option value="emergency">Emergency</option>
                   <option value="urgent">Urgent</option>
@@ -174,7 +174,7 @@ export default function Allocate() {
 
             {result && (
               <div className={`px-3 py-2 rounded text-xs flex items-center gap-2 ${
-                result.status === 'fulfilled' ? 'bg-[#d9cfee]/30 text-[#492880]' : 'bg-[#ffdad6] text-[#93000a]'
+                result.status === 'fulfilled' ? 'bg-[#92f5a4]/30 text-[#005323]' : 'bg-[#ffdad6] text-[#93000a]'
               }`}>
                 <span className="material-symbols-outlined text-[16px]">
                   {result.status === 'fulfilled' ? 'check_circle' : 'error'}
@@ -186,7 +186,7 @@ export default function Allocate() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-[#2e2157] text-white py-3 text-sm font-bold rounded hover:opacity-90 transition-all disabled:opacity-50"
+              className="w-full bg-[#1b1c15] text-white py-3 text-sm font-bold rounded hover:opacity-90 transition-all disabled:opacity-50"
             >
               {submitting ? 'Processing...' : 'Process Request'}
             </button>
@@ -194,36 +194,36 @@ export default function Allocate() {
         </div>
 
         {/* Recent allocations */}
-        <div className="lg:col-span-3 soft-green-panel border border-[#d9d0ea]/30 rounded overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#d9d0ea]/20">
-            <h3 className="font-headline font-bold text-[#2e2157]">Recent Allocations</h3>
+        <div className="lg:col-span-3 soft-green-panel border border-[#becabc]/30 rounded overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#becabc]/20">
+            <h3 className="font-headline font-bold text-[#1b1c15]">Recent Allocations</h3>
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-[#f3effa]">
+              <tr className="bg-[#f5f4e8]">
                 {['Request', 'Group', 'Component', 'Units', 'Status', 'Date'].map((h) => (
-                  <th key={h} className="px-4 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-[#4a4466]">{h}</th>
+                  <th key={h} className="px-4 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-[#3f493f]">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-[#6b6680] text-sm">Loading...</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-[#6f7a6e] text-sm">Loading...</td></tr>
               ) : allocations.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-[#6b6680] text-sm">No allocations yet</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-[#6f7a6e] text-sm">No allocations yet</td></tr>
               ) : (
                 allocations.slice(0, 20).map((a, i) => (
-                  <tr key={a.id ?? i} className={`border-b border-[#d9d0ea]/10 ${i % 2 === 0 ? 'bg-white' : 'bg-[#f9f6fd]'}`}>
-                    <td className="px-4 py-2 text-[#2e2157] font-medium">{a.request_id || '—'}</td>
+                  <tr key={a.id ?? i} className={`border-b border-[#becabc]/10 ${i % 2 === 0 ? 'bg-white' : 'bg-[#fbfaee]'}`}>
+                    <td className="px-4 py-2 text-[#1b1c15] font-medium">{a.request_id || '—'}</td>
                     <td className="px-4 py-2 mono-data text-xs">{a.blood_group}</td>
-                    <td className="px-4 py-2 mono-data text-xs text-[#4a4466]">{a.component}</td>
+                    <td className="px-4 py-2 mono-data text-xs text-[#3f493f]">{a.component}</td>
                     <td className="px-4 py-2 mono-data text-xs">{a.units_fulfilled}/{a.units_requested}</td>
                     <td className="px-4 py-2">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusBadge(a.status)}`}>
                         {a.status}
                       </span>
                     </td>
-                    <td className="px-4 py-2 mono-data text-xs text-[#6b6680]">
+                    <td className="px-4 py-2 mono-data text-xs text-[#6f7a6e]">
                       {a.created_at?.slice(0, 10)}
                     </td>
                   </tr>

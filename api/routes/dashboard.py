@@ -5,7 +5,7 @@ GET /api/dashboard/stats
 
 import sys
 from pathlib import Path
-from datetime import date
+from datetime import date, timedelta
 from flask import Blueprint, jsonify
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
@@ -34,6 +34,59 @@ def _upload_totals(client) -> tuple[int, int]:
     total_batches = len(upload_rows)
     total_records = sum(r.get("total_rows") or r.get("inserted", 0) for r in upload_rows)
     return total_batches, total_records
+
+
+EXPIRY_BUCKETS = [
+    ("Past due",   None, -1),
+    ("0–3 days",   0,    3),
+    ("4–7 days",   4,    7),
+    ("8–14 days",  8,    14),
+    ("15–30 days", 15,   30),
+    ("31+ days",   31,   None),
+]
+
+
+def _expiry_buckets(rows: list, today: date) -> list:
+    """Count units by days left until expiry (rows without an expiry date are ignored)."""
+    counts = [0] * len(EXPIRY_BUCKETS)
+    for r in rows:
+        raw = r.get("expiry_date")
+        if not raw:
+            continue
+        days_left = (date.fromisoformat(str(raw)[:10]) - today).days
+        for i, (_label, low, high) in enumerate(EXPIRY_BUCKETS):
+            if (low is None or days_left >= low) and (high is None or days_left <= high):
+                counts[i] += 1
+                break
+    return [{"label": b[0], "units": counts[i]} for i, b in enumerate(EXPIRY_BUCKETS)]
+
+
+def _group_component_matrix(rows: list) -> dict:
+    """{blood_group: {component: units}} for the stock heat-map."""
+    matrix: dict = {}
+    for r in rows:
+        group, comp = r.get("blood_group"), r.get("component")
+        if not group or not comp:
+            continue
+        matrix.setdefault(group, {})
+        matrix[group][comp] = matrix[group].get(comp, 0) + 1
+    return matrix
+
+
+def _allocation_summary(rows: list) -> dict:
+    requested = sum(r.get("units_requested") or 0 for r in rows)
+    fulfilled = sum(r.get("units_fulfilled") or 0 for r in rows)
+    by_status: dict = {}
+    for r in rows:
+        status = r.get("status")
+        if status:
+            by_status[status] = by_status.get(status, 0) + 1
+    return {
+        "total_requested":  requested,
+        "total_fulfilled":  fulfilled,
+        "fulfillment_rate": round(fulfilled / requested * 100, 1) if requested else 0,
+        "by_status":        by_status,
+    }
 
 
 @dashboard_bp.route("/dashboard/stats", methods=["GET"])
@@ -65,11 +118,11 @@ def dashboard_stats():
         stock_by_comp[c] = stock_by_comp.get(c, 0) + 1
 
     # expiring within 7 days
-    from datetime import timedelta
     cutoff = (date.today() + timedelta(days=7)).isoformat()
+    today_iso = date.today().isoformat()
     expiring_soon = [
         r for r in available_rows
-        if r.get("expiry_date") and r["expiry_date"] <= cutoff
+        if r.get("expiry_date") and today_iso <= r["expiry_date"] <= cutoff
     ]
 
     # ── donors ────────────────────────────────────────────────────────────────
@@ -114,6 +167,9 @@ def dashboard_stats():
             "by_group":       stock_by_group,
             "by_component":   stock_by_comp,
             "expiring_soon":  len(expiring_soon),
+            "total_volume_ml": round(total_volume),
+            "by_group_component": _group_component_matrix(available_rows),
+            "expiry_buckets": _expiry_buckets(available_rows, date.today()),
         },
         "donors": {
             "total":    total_donors,
@@ -123,6 +179,7 @@ def dashboard_stats():
             "total_today":    len([r for r in alloc_rows
                                    if r.get("created_at", "")[:10] == date.today().isoformat()]),
             "total_all_time": len(alloc_rows),
+            **_allocation_summary(alloc_rows),
         },
         "wastage": {
             "total_expired": total_wasted,

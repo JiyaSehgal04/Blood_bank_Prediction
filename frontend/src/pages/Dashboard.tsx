@@ -29,14 +29,14 @@ interface Stats {
 }
 
 const BLOOD_COLORS: Record<string, string> = {
-  "O Pos": "#6B4A98",
+  "O Pos": "#006d30",
   "A Pos": "#008040",
   "B Pos": "#4de082",
-  "AB Pos": "#d9cfee",
-  "O Neg": "#2e2157",
-  "A Neg": "#5b5470",
-  "B Neg": "#6b6680",
-  "AB Neg": "#d9d0ea",
+  "AB Pos": "#92f5a4",
+  "O Neg": "#1b1c15",
+  "A Neg": "#585756",
+  "B Neg": "#6f7a6e",
+  "AB Neg": "#becabc",
 };
 
 const BLOOD_GROUP_ORDER = [
@@ -57,7 +57,7 @@ const STOCK_STATUS = {
   critical: { label: "Critical", color: "#ba1a1a" },
   low: { label: "Low", color: "#b25c00" },
   watch: { label: "Watch", color: "#008040" },
-  healthy: { label: "Healthy", color: "#6B4A98" },
+  healthy: { label: "Healthy", color: "#006d30" },
 };
 
 interface GroupDatum {
@@ -82,28 +82,28 @@ function KpiCard({
 }) {
   return (
     <div
-      className={`p-6 border rounded ${accent ? "bg-[#2e2157] border-transparent" : "soft-green-panel border-[#d9d0ea]/30"}`}
+      className={`p-6 border rounded ${accent ? "bg-[#1b1c15] border-transparent" : "soft-green-panel border-[#becabc]/30"}`}
     >
       <div className="flex items-center justify-between mb-4">
         <span
-          className={`text-[10px] font-medium uppercase tracking-[0.2em] ${accent ? "text-white/50" : "text-[#4a4466]"}`}
+          className={`text-[10px] font-medium uppercase tracking-[0.2em] ${accent ? "text-white/50" : "text-[#3f493f]"}`}
         >
           {label}
         </span>
         <span
-          className={`material-symbols-outlined ${accent ? "text-[#c9bde5]" : "text-[#6B4A98]"}`}
+          className={`material-symbols-outlined ${accent ? "text-[#79db8d]" : "text-[#006d30]"}`}
         >
           {icon}
         </span>
       </div>
       <div
-        className={`mono-data text-3xl font-bold ${accent ? "text-white" : "text-[#2e2157]"}`}
+        className={`mono-data text-3xl font-bold ${accent ? "text-white" : "text-[#1b1c15]"}`}
       >
         {value}
       </div>
       {sub && (
         <div
-          className={`text-xs mt-1 ${accent ? "text-white/40" : "text-[#6b6680]"}`}
+          className={`text-xs mt-1 ${accent ? "text-white/40" : "text-[#6f7a6e]"}`}
         >
           {sub}
         </div>
@@ -135,7 +135,7 @@ function InventoryTooltip({
   const status = STOCK_STATUS[item.status];
 
   return (
-    <div className="rounded bg-[#2e2157] px-3 py-2 shadow-xl">
+    <div className="rounded bg-[#1b1c15] px-3 py-2 shadow-xl">
       <div className="flex items-center gap-2">
         <span
           className="h-2 w-2 rounded-full"
@@ -225,7 +225,7 @@ export default function Dashboard() {
   if (loading)
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="mono-data text-[#6b6680] text-sm animate-pulse">
+        <div className="mono-data text-[#6f7a6e] text-sm animate-pulse">
           Loading system data...
         </div>
       </div>
@@ -260,14 +260,14 @@ export default function Dashboard() {
     <div className="green-stroke-bg space-y-8">
       {/* Header */}
       <div>
-        <div className="text-[10px] font-mono text-[#6B4A98] uppercase tracking-[0.3em] mb-1">
+        <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.3em] mb-1">
           System Overview
         </div>
-        <h1 className="font-headline text-3xl font-extrabold text-[#2e2157] tracking-tight">
+        <h1 className="font-headline text-3xl font-extrabold text-[#1b1c15] tracking-tight">
           Dashboard
         </h1>
         {lastUpdated && (
-          <div className="text-[10px] font-mono text-[#6b6680] mt-1">
+          <div className="text-[10px] font-mono text-[#6f7a6e] mt-1">
             Last updated {lastUpdated}
           </div>
         )}
@@ -309,37 +309,37 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Bar chart */}
-        <div className="lg:col-span-2 soft-green-panel border border-[#d9d0ea]/30 rounded p-6">
+        <div className="lg:col-span-2 soft-green-panel border border-[#becabc]/30 rounded p-6">
           <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <div className="text-[10px] font-mono text-[#6B4A98] uppercase tracking-[0.2em] mb-1">
+              <div className="text-[10px] font-mono text-[#006d30] uppercase tracking-[0.2em] mb-1">
                 Inventory Risk
               </div>
-              <h3 className="font-headline text-lg font-bold text-[#2e2157]">
+              <h3 className="font-headline text-lg font-bold text-[#1b1c15]">
                 Blood Group Stock Balance
               </h3>
-              <p className="mt-1 text-xs text-[#6b6680]">
+              <p className="mt-1 text-xs text-[#6f7a6e]">
                 Sorted from lowest to highest stock. Red and amber groups need
                 replenishment first.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 text-right">
-              <div className="rounded bg-[#f3effa] px-3 py-2">
-                <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#6b6680]">
+              <div className="rounded bg-[#f5f4e8] px-3 py-2">
+                <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#6f7a6e]">
                   Avg/group
                 </div>
-                <div className="mono-data text-lg font-bold text-[#2e2157]">
+                <div className="mono-data text-lg font-bold text-[#1b1c15]">
                   {averageUnits.toFixed(1)}
                 </div>
               </div>
               <div
-                className={`rounded px-3 py-2 ${criticalGroups > 0 ? "bg-[#ffdad6]" : "bg-[#f6f2fc]"}`}
+                className={`rounded px-3 py-2 ${criticalGroups > 0 ? "bg-[#ffdad6]" : "bg-[#e3f8df]"}`}
               >
-                <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#6b6680]">
+                <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#6f7a6e]">
                   Risk groups
                 </div>
                 <div
-                  className={`mono-data text-lg font-bold ${criticalGroups > 0 ? "text-[#93000a]" : "text-[#6B4A98]"}`}
+                  className={`mono-data text-lg font-bold ${criticalGroups > 0 ? "text-[#93000a]" : "text-[#006d30]"}`}
                 >
                   {criticalGroups}
                 </div>
@@ -356,7 +356,7 @@ export default function Dashboard() {
                   margin={{ top: 8, right: 36, bottom: 8, left: 4 }}
                 >
                   <CartesianGrid
-                    stroke="#e3dcf2"
+                    stroke="#e4e3d7"
                     strokeDasharray="3 3"
                     horizontal={false}
                   />
@@ -366,7 +366,7 @@ export default function Dashboard() {
                     tick={{
                       fontSize: 10,
                       fontFamily: "JetBrains Mono",
-                      fill: "#6b6680",
+                      fill: "#6f7a6e",
                     }}
                     axisLine={false}
                     tickLine={false}
@@ -378,7 +378,7 @@ export default function Dashboard() {
                     tick={{
                       fontSize: 10,
                       fontFamily: "JetBrains Mono",
-                      fill: "#4a4466",
+                      fill: "#3f493f",
                     }}
                     axisLine={false}
                     tickLine={false}
@@ -386,19 +386,19 @@ export default function Dashboard() {
                   {averageUnits > 0 && (
                     <ReferenceLine
                       x={averageUnits}
-                      stroke="#2e2157"
+                      stroke="#1b1c15"
                       strokeDasharray="4 4"
                       label={{
                         value: "avg",
                         position: "top",
-                        fill: "#6b6680",
+                        fill: "#6f7a6e",
                         fontSize: 10,
                         fontFamily: "JetBrains Mono",
                       }}
                     />
                   )}
                   <Tooltip
-                    cursor={{ fill: "#f3effa" }}
+                    cursor={{ fill: "#f5f4e8" }}
                     content={<InventoryTooltip />}
                   />
                   <Bar
@@ -412,7 +412,7 @@ export default function Dashboard() {
                         key={entry.name}
                         fill={
                           entry.status === "healthy"
-                            ? (BLOOD_COLORS[entry.name] ?? "#6B4A98")
+                            ? (BLOOD_COLORS[entry.name] ?? "#006d30")
                             : STOCK_STATUS[entry.status].color
                         }
                       />
@@ -421,17 +421,17 @@ export default function Dashboard() {
                       dataKey="units"
                       position="right"
                       className="mono-data"
-                      fill="#2e2157"
+                      fill="#1b1c15"
                       fontSize={11}
                     />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-              <div className="mt-4 flex flex-wrap gap-3 border-t border-[#d9d0ea]/30 pt-4">
+              <div className="mt-4 flex flex-wrap gap-3 border-t border-[#becabc]/30 pt-4">
                 {Object.entries(STOCK_STATUS).map(([key, item]) => (
                   <div
                     key={key}
-                    className="flex items-center gap-2 text-[11px] text-[#4a4466]"
+                    className="flex items-center gap-2 text-[11px] text-[#3f493f]"
                   >
                     <span
                       className="h-2.5 w-2.5 rounded-full"
@@ -445,7 +445,7 @@ export default function Dashboard() {
               </div>
             </>
           ) : (
-            <div className="h-56 flex items-center justify-center text-[#6b6680] text-sm">
+            <div className="h-56 flex items-center justify-center text-[#6f7a6e] text-sm">
               No inventory data — run initial load or upload a file
             </div>
           )}
@@ -458,30 +458,30 @@ export default function Dashboard() {
             className={`p-6 border rounded ${
               (stats?.alerts.critical ?? 0) > 0
                 ? "bg-[#ffdad6] border-[#ba1a1a]/10"
-                : "soft-green-panel border-[#d9d0ea]/30"
+                : "soft-green-panel border-[#becabc]/30"
             }`}
           >
             <div className="flex items-center gap-3 mb-3">
               <span
-                className={`material-symbols-outlined ${(stats?.alerts.critical ?? 0) > 0 ? "text-[#ba1a1a]" : "text-[#6B4A98]"}`}
+                className={`material-symbols-outlined ${(stats?.alerts.critical ?? 0) > 0 ? "text-[#ba1a1a]" : "text-[#006d30]"}`}
               >
                 {(stats?.alerts.critical ?? 0) > 0 ? "warning" : "check_circle"}
               </span>
-              <h3 className="font-headline font-bold text-[#2e2157]">
+              <h3 className="font-headline font-bold text-[#1b1c15]">
                 Active Alerts
               </h3>
             </div>
-            <div className="mono-data text-4xl font-bold text-[#2e2157] mb-1">
+            <div className="mono-data text-4xl font-bold text-[#1b1c15] mb-1">
               {stats?.alerts.active ?? 0}
             </div>
-            <div className="text-xs text-[#4a4466]">
+            <div className="text-xs text-[#3f493f]">
               {stats?.alerts.critical ?? 0} critical
             </div>
           </div>
 
           {/* Components breakdown */}
-          <div className="soft-green-panel border border-[#d9d0ea]/30 rounded p-6">
-            <h3 className="font-headline font-bold text-[#2e2157] mb-4">
+          <div className="soft-green-panel border border-[#becabc]/30 rounded p-6">
+            <h3 className="font-headline font-bold text-[#1b1c15] mb-4">
               By Component
             </h3>
             {stats && Object.keys(stats.inventory.by_component).length > 0 ? (
@@ -490,16 +490,16 @@ export default function Dashboard() {
                   ([comp, count]) => (
                     <div key={comp}>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-mono text-[#4a4466]">
+                        <span className="text-xs font-mono text-[#3f493f]">
                           {comp}
                         </span>
-                        <span className="mono-data text-sm font-bold text-[#2e2157]">
+                        <span className="mono-data text-sm font-bold text-[#1b1c15]">
                           {count}
                         </span>
                       </div>
-                      <div className="h-1.5 bg-[#f3effa] rounded-full overflow-hidden">
+                      <div className="h-1.5 bg-[#f5f4e8] rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-[#6B4A98] rounded-full"
+                          className="h-full bg-[#006d30] rounded-full"
                           style={{
                             width: `${Math.min(100, (count / (stats.inventory.total || 1)) * 100)}%`,
                           }}
@@ -510,13 +510,13 @@ export default function Dashboard() {
                 )}
               </div>
             ) : (
-              <div className="text-xs text-[#6b6680]">No data</div>
+              <div className="text-xs text-[#6f7a6e]">No data</div>
             )}
           </div>
 
           {/* Data ingestion */}
-          <div className="soft-green-panel border border-[#d9d0ea]/30 rounded p-6">
-            <h3 className="font-headline font-bold text-[#2e2157] mb-3">
+          <div className="soft-green-panel border border-[#becabc]/30 rounded p-6">
+            <h3 className="font-headline font-bold text-[#1b1c15] mb-3">
               Data Ingestion
             </h3>
             <div className="space-y-2">
@@ -528,8 +528,8 @@ export default function Dashboard() {
                   key={label as string}
                   className="flex justify-between items-center text-xs"
                 >
-                  <span className="text-[#4a4466]">{label}</span>
-                  <span className="mono-data font-bold text-[#2e2157]">
+                  <span className="text-[#3f493f]">{label}</span>
+                  <span className="mono-data font-bold text-[#1b1c15]">
                     {val}
                   </span>
                 </div>

@@ -94,3 +94,57 @@ def test_replenishment_returns_empty_plan_when_ml_unavailable(client):
     assert data["replenishment"] == []
     assert data["count"] == 0
     assert "warning" in data
+
+
+def _summary_response(content, finish_reason="stop"):
+    choice = MagicMock()
+    choice.message.content = content
+    choice.finish_reason = finish_reason
+    response = MagicMock()
+    response.choices = [choice]
+    return response
+
+
+def _call_summary(client, response):
+    mock_supabase = MagicMock()
+    mock_supabase.table.return_value.select.return_value.order.return_value.limit.return_value \
+        .eq.return_value.execute.return_value = MagicMock(data=[])
+    mock_supabase.table.return_value.select.return_value.order.return_value.limit.return_value \
+        .execute.return_value = MagicMock(data=[])
+    mock_supabase.table.return_value.select.return_value.eq.return_value.in_.return_value \
+        .limit.return_value.execute.return_value = MagicMock(data=[])
+    mock_supabase.table.return_value.select.return_value.eq.return_value.in_.return_value \
+        .limit.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+
+    with patch("api.routes.predictions._SUMMARY_CACHE", {}) as cache, \
+         patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}), \
+         patch("api.routes.predictions.get_client", return_value=mock_supabase), \
+         patch("api.routes.predictions._REPLENISHMENT") as repl, \
+         patch("api.routes.predictions.Groq") as groq_cls:
+        repl.get.return_value = []
+        create = groq_cls.return_value.chat.completions.create
+        create.return_value = response
+        res = client.get("/api/predictions/summary?component=PLT", headers=auth_header(client))
+        return res, cache, create
+
+
+def test_summary_rejects_empty_answer_and_does_not_cache_it(client):
+    res, cache, _ = _call_summary(client, _summary_response(""))
+
+    assert res.status_code == 503
+    assert cache == {}
+
+
+def test_summary_rejects_answer_cut_off_by_token_limit(client):
+    res, cache, _ = _call_summary(client, _summary_response("AB Negative is out of", finish_reason="length"))
+
+    assert res.status_code == 503
+    assert cache == {}
+
+
+def test_summary_leaves_room_for_reasoning_tokens(client):
+    res, cache, create = _call_summary(client, _summary_response("All stock levels are healthy."))
+
+    assert res.status_code == 200
+    assert create.call_args.kwargs["max_tokens"] >= 1000
+    assert cache["PLT"]["summary"] == "All stock levels are healthy."

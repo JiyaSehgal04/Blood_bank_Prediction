@@ -18,12 +18,29 @@ import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from db.supabase_client import get_client
+from services.replenishment_cache import ReplenishmentCache
 
 predictions_bp = Blueprint("predictions", __name__, url_prefix="/api")
 
 # (component -> {"summary": str, "expires_at": float})
 _SUMMARY_CACHE: dict[str, dict] = {}
-_SUMMARY_TTL_SECONDS = 120
+_SUMMARY_TTL_SECONDS = 600
+_SUMMARY_MAX_TOKENS = 1200
+
+
+def _compute_replenishment() -> list:
+    from ml.scripts.predict import MLPredictor
+    return MLPredictor().replenishment_plan()
+
+
+# Building the plan takes ~20 s, so every caller shares one cached copy.
+_REPLENISHMENT = ReplenishmentCache(compute=_compute_replenishment, ttl=600)
+
+
+def invalidate_prediction_caches() -> None:
+    """Call after predictions/stock change so the next read rebuilds fresh data."""
+    _SUMMARY_CACHE.clear()
+    _REPLENISHMENT.invalidate()
 
 
 @predictions_bp.route("/predictions", methods=["GET"])
@@ -56,6 +73,7 @@ def run_predictions():
         all_preds = predictor.predict_all()
         predictor.run_ml_alerts(predictions=all_preds)
         total = sum(len(p) for p in all_preds.values())
+        invalidate_prediction_caches()
         return jsonify({"predictions_generated": total, "status": "ok"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -100,8 +118,7 @@ def get_anomalies():
 def replenishment():
     """ML-powered replenishment recommendations."""
     try:
-        from ml.scripts.predict import MLPredictor
-        plan = MLPredictor().replenishment_plan()
+        plan = _REPLENISHMENT.get()
         return jsonify({"replenishment": plan, "count": len(plan)}), 200
     except Exception as e:
         return jsonify({
@@ -161,8 +178,7 @@ def predictions_summary():
 
     replenishment = []
     try:
-        from ml.scripts.predict import MLPredictor
-        full_plan = MLPredictor().replenishment_plan()
+        full_plan = _REPLENISHMENT.get()
         replenishment = [r for r in full_plan if not component or r.get("component") == component]
     except Exception:
         pass
@@ -241,11 +257,17 @@ def predictions_summary():
                 },
             ],
             model="openai/gpt-oss-120b",
-            max_tokens=300,
+            # gpt-oss is a reasoning model: hidden reasoning tokens count against this limit,
+            # so a small cap leaves the visible answer empty or cut off mid-sentence.
+            max_tokens=_SUMMARY_MAX_TOKENS,
+            extra_body={"reasoning_effort": "low"},
         )
         if not response.choices:
             return jsonify({"error": "Summary unavailable"}), 503
-        summary = response.choices[0].message.content
+        choice = response.choices[0]
+        summary = (choice.message.content or "").strip()
+        if not summary or choice.finish_reason == "length":
+            return jsonify({"error": "Summary unavailable"}), 503
         _SUMMARY_CACHE[component] = {"summary": summary, "expires_at": time.time() + _SUMMARY_TTL_SECONDS}
         return jsonify({"summary": summary, "component": component}), 200
     except Exception:
