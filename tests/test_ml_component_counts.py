@@ -51,8 +51,13 @@ def test_replenishment_uses_matching_component_inventory(monkeypatch):
     monkeypatch.setattr(predict.MLPredictor, "predict_component", fake_predict_component)
 
     plan = predictor.replenishment_plan()
+    row = lambda group, comp: next((r for r in plan if r["blood_group"] == group and r["component"] == comp), None)
 
-    assert plan[0]["component"] == "FFP"
-    assert plan[0]["current_stock"] == 1
-    assert plan[0]["expiring_in_7d"] == 2
-    assert plan[0]["recommended_order"] == 13
+    ffp = row("O Pos", "FFP")
+    assert ffp["current_stock"] == 1                 # FFP stock, not the 99 WB/PRC units
+    assert ffp["expiring_in_7d"] == 2
+    # demand 7 + safety 4 (half a week) - usable stock 1; the 2 expiring units are absorbed by
+    # the 7-day demand, so they are not added on top (the old formula ordered 13).
+    assert ffp["recommended_order"] == 10
+    assert ffp["basis"] == "forecast"
+    assert row("O Pos", "WB/PRC") is None            # 99 in stock, no forecast: nothing to order

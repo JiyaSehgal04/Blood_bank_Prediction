@@ -14,3 +14,15 @@ def _admin_credentials(monkeypatch):
         "ADMIN_PASSWORD_HASH",
         generate_password_hash(TEST_ADMIN_PASSWORD, method="pbkdf2:sha256"),
     )
+
+
+@pytest.fixture(autouse=True)
+def _no_live_forecast_status(monkeypatch):
+    """Route tests must never read the live database to assess forecast history."""
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        "api.routes.predictions._FORECAST_STATUS",
+        SimpleNamespace(get=lambda: {}, invalidate=lambda: None),
+        raising=False,
+    )

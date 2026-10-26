@@ -28,6 +28,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from ml.scripts.preprocess import FeaturePipeline, INDIAN_BLOOD_DIST
 from ml.scripts.train      import SESForecaster, XGBForecaster, AnomalyDetector
 from db.supabase_client    import get_client
+from ml.scripts.forecast_engine import forecast_component, MODEL_NAME
+from ml.scripts.replenishment_policy import plan_replenishment
 from shared.cleaning_utils import VALID_BLOOD_GROUPS
 
 MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
@@ -62,6 +64,13 @@ class MLPredictor:
         self.pipe   = FeaturePipeline()
         self.client = get_client()
         self.store_errors = []
+        self.insufficient = {}      # component -> reason a forecast was withheld
+        self._summary = None
+
+    def _daily_summary(self):
+        if self._summary is None:
+            self._summary = self.pipe.fetch_daily_summary()
+        return self._summary
 
     # ── generate forecasts ────────────────────────────────────────────────────
 
@@ -73,55 +82,22 @@ class MLPredictor:
         return all_preds
 
     def predict_component(self, component: str, store: bool = True) -> list:
-        comp_key = component.replace("/", "_")
-        df       = self.pipe.build_features(component)
+        """Forecast one component. Returns [] (and records why) when the history is too thin."""
+        result = forecast_component(self._daily_summary(), component, date.today())
+        if result["status"] != "ok":
+            self.insufficient[component] = result["reason"]
+            return []
+        self.insufficient.pop(component, None)
 
-        ses_models = _load_model(MODELS_DIR / f"ses_{comp_key}.joblib")
-        xgb_model  = _load_model(MODELS_DIR / f"xgb_{comp_key}.joblib")
-        feature_cols = self.pipe.get_feature_cols()
-
-        preds = []
-        for bg in VALID_BLOOD_GROUPS:
-            # SES prediction
-            if ses_models and bg in ses_models:
-                ses_pred = ses_models[bg].predict(bg)
-            else:
-                ses_pred = INDIAN_BLOOD_DIST.get(bg, 0.01) * 5
-
-            # XGBoost prediction
-            if xgb_model and xgb_model.trained and not df.empty:
-                row = df[df["blood_group"] == bg]
-                if not row.empty:
-                    xgb_pred = xgb_model.predict(row.iloc[-1])
-                    final    = round(0.7 * xgb_pred + 0.3 * ses_pred, 1)
-                    model    = "ensemble_xgb_ses"
-                else:
-                    final, model = ses_pred, "ses"
-            else:
-                final, model = ses_pred, "ses"
-
-            std = 1.0
-            if not df.empty:
-                row = df[df["blood_group"] == bg]
-                if not row.empty:
-                    std = max(1.0, float(row.iloc[-1].get("rolling_std_7d", 1) or 1))
-
-            preds.append({
-                "blood_group":     bg,
-                "component":       component,
-                "predicted_demand":final,
-                "confidence_low":  max(0, round(final - std, 1)),
-                "confidence_high": round(final + std, 1),
-                "model_used":      model,
-                "prediction_date": date.today().isoformat(),
-            })
+        preds = list(result["rows"])                     # each row also carries est_7d (not stored)
+        payload = [{k: v for k, v in row.items() if k != "est_7d"} for row in preds]
 
         if store:
             # Store in DB. Older deployed schemas may not yet have the unique
             # constraint required by PostgREST upsert, so fall back to replace.
             try:
                 self.client.table("predictions").upsert(
-                    preds,
+                    payload,
                     on_conflict="prediction_date,blood_group,component"
                 ).execute()
             except Exception as e:
@@ -130,7 +106,7 @@ class MLPredictor:
                         .eq("prediction_date", date.today().isoformat()) \
                         .eq("component", component) \
                         .execute()
-                    self.client.table("predictions").insert(preds).execute()
+                    self.client.table("predictions").insert(payload).execute()
                 except Exception as fallback_error:
                     message = (
                         f"prediction store failed for {component}: {e}; "
@@ -146,6 +122,10 @@ class MLPredictor:
     def detect_anomalies(self, component: str = "WB/PRC") -> list:
         """Run Isolation Forest on latest data. Returns anomalous rows."""
         comp_key = component.replace("/", "_")
+        # The legacy detector was trained on near-empty data and flags noise; only run it when
+        # the recorded demand is substantial enough to compare against.
+        if forecast_component(self._daily_summary(), component, date.today())["status"] != "ok":
+            return []
         model    = _load_model(MODELS_DIR / f"isolation_forest_{comp_key}.joblib")
         if not model:
             return []
@@ -231,42 +211,20 @@ class MLPredictor:
     # ── replenishment recommendations ─────────────────────────────────────────
 
     def replenishment_plan(self) -> list:
-        """
-        order_qty = max(0, demand_7d + safety_stock - current_stock + expiring_7d)
-        """
+        """Order recommendations; see ml/scripts/replenishment_policy.py for the formula."""
         stock    = self.pipe.fetch_stock_levels()
         expiring = self.pipe.fetch_expiry_counts()
-        plan     = []
-
+        forecasts = {}
         for comp in COMPONENTS:
-            preds = self.predict_component(comp, store=False)
-            for p in preds:
-                bg       = p["blood_group"]
-                curr     = stock.get((bg, comp), 0)
-                exp_7d   = expiring.get((bg, comp), 0)
-                demand_7d= round(p["predicted_demand"] * 7)
-                order    = max(0, demand_7d + SAFETY_STOCK - curr + exp_7d)
-
-                if order > 0 or curr < SAFETY_STOCK:
-                    plan.append({
-                        "blood_group":       bg,
-                        "component":         comp,
-                        "current_stock":     curr,
-                        "forecast_daily":    p["predicted_demand"],
-                        "est_demand_7d":     demand_7d,
-                        "expiring_in_7d":    exp_7d,
-                        "recommended_order": order,
-                        "model_used":        p["model_used"],
-                        "urgency": ("HIGH"   if curr == 0
-                                    else "MEDIUM" if order > 3
-                                    else "LOW"),
-                    })
-
-        plan.sort(key=lambda r: (
-            0 if r["urgency"] == "HIGH" else
-            1 if r["urgency"] == "MEDIUM" else 2
-        ))
-        return plan
+            for p in self.predict_component(comp, store=False):
+                key = (p["blood_group"], comp)
+                forecasts[key] = {
+                    "est_7d": p.get("est_7d", p["predicted_demand"] * 7),
+                    "daily":  p["predicted_demand"],
+                    "model":  p.get("model_used", MODEL_NAME),
+                }
+        return plan_replenishment(forecasts, stock, expiring, VALID_BLOOD_GROUPS, COMPONENTS,
+                                  minimum_stock=SAFETY_STOCK)
 
     # ── helper ────────────────────────────────────────────────────────────────
 

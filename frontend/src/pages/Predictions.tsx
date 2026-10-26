@@ -30,11 +30,21 @@ interface ReplenishItem {
   blood_group: string;
   component: string;
   current_stock: number;
-  est_demand_7d: number;
+  est_demand_7d: number | null;
   expiring_in_7d: number;
   recommended_order: number;
   urgency: string;
   model_used: string;
+  basis?: "forecast" | "minimum_stock";
+}
+
+interface ComponentStatus {
+  status: "ok" | "insufficient_data";
+  reason: string;
+  units: number;
+  active_days: number;
+  window_days: number;
+  last_demand_date: string | null;
 }
 
 const PREDICTIONS_CACHE_KEY = "blood_bank_predictions_cache";
@@ -168,6 +178,7 @@ export default function Predictions() {
   const [loading, setLoading] = useState(
     () => readCache<Prediction[]>(PREDICTIONS_CACHE_KEY, []).length === 0,
   );
+  const [dataStatus, setDataStatus] = useState<Record<string, ComponentStatus>>({});
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState("");
   const [activeComponent, setActiveComponent] = useState("WB/PRC");
@@ -211,6 +222,7 @@ export default function Predictions() {
         if (signal?.aborted) return;
         const nextPredictions = predsRes.data.predictions ?? [];
         setPredictions(nextPredictions);
+        setDataStatus(predsRes.data.data_status ?? {});
         writeCache(PREDICTIONS_CACHE_KEY, nextPredictions);
       } catch (e: unknown) {
         if (!isCanceledError(e)) console.error(e);
@@ -338,13 +350,14 @@ export default function Predictions() {
 
     return latestPredictions.map((p) => {
       const rep = repMap[p.blood_group];
+      const demand7d = rep?.est_demand_7d ?? 0;
       const coverageDays =
-        rep && rep.est_demand_7d > 0
-          ? ((rep.current_stock / rep.est_demand_7d) * 7).toFixed(1)
+        rep && demand7d > 0
+          ? ((rep.current_stock / demand7d) * 7).toFixed(1)
           : null;
       const coveragePct =
-        rep && rep.est_demand_7d > 0
-          ? Math.min(100, (rep.current_stock / rep.est_demand_7d) * 100)
+        rep && demand7d > 0
+          ? Math.min(100, (rep.current_stock / demand7d) * 100)
           : 0;
       return { ...p, rep, coverageDays, coveragePct };
     });
@@ -488,6 +501,43 @@ export default function Predictions() {
         </div>
       </section>
 
+      {/* ── Forecast paused: explain why and what to do ── */}
+      {!loading && latestPredictions.length === 0 && (
+        <section
+          role="status"
+          className="rounded-lg border-2 border-[#b25c00] bg-[#ffe9cc] p-6 text-[#4a2a00]"
+        >
+          <div className="flex items-start gap-4">
+            <span className="material-symbols-outlined shrink-0 text-[#b25c00]" style={{ fontSize: 32 }}>
+              pause_circle
+            </span>
+            <div className="min-w-0">
+              <h2 className="font-headline text-xl font-extrabold">
+                Forecast paused for {activeComponent}
+              </h2>
+              <p className="mt-1 text-[15px] font-medium leading-relaxed">
+                {dataStatus[activeComponent]?.reason ||
+                  "Not enough issued units have been recorded yet to forecast demand reliably."}
+              </p>
+              {dataStatus[activeComponent] && (
+                <p className="mt-2 text-[13px] font-semibold">
+                  Recorded in the last {dataStatus[activeComponent].window_days} days:{" "}
+                  {dataStatus[activeComponent].units} units on {dataStatus[activeComponent].active_days} days
+                  {dataStatus[activeComponent].last_demand_date
+                    ? ` · last demand ${dataStatus[activeComponent].last_demand_date}`
+                    : ""}
+                </p>
+              )}
+              <p className="mt-3 text-[14px] leading-relaxed">
+                <b>To enable forecasts:</b> record every unit that is issued or transfused (use the Allocation
+                page, or upload the issue register). Forecasting switches on automatically once enough history
+                exists. Until then, the order list below uses a simple minimum-stock rule and says so.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── Full-width forecast chart ── */}
       <section className="soft-green-panel rounded border border-[#13294b]/20 overflow-hidden">
         <div className="p-8 pb-4">
@@ -584,7 +634,7 @@ export default function Predictions() {
           </ResponsiveContainer>
         ) : (
           <div className="h-64 flex items-center justify-center text-[#4b5468] text-sm px-8 pb-8">
-            No predictions yet — upload data to generate
+            Nothing to chart — see the notice above
           </div>
         )}
       </section>
@@ -717,7 +767,7 @@ export default function Predictions() {
                         {r.current_stock}
                       </td>
                       <td className="px-4 py-2.5 mono-data text-xs">
-                        {r.est_demand_7d}
+                        {r.est_demand_7d ?? "—"}
                       </td>
                       <td
                         className={`px-4 py-2.5 mono-data text-xs ${r.expiring_in_7d > 0 ? "text-[#7a0909] font-bold" : ""}`}
@@ -726,6 +776,14 @@ export default function Predictions() {
                       </td>
                       <td className="px-4 py-2.5 mono-data text-xs font-bold text-[#13294b]">
                         {r.recommended_order}
+                        {r.basis === "minimum_stock" && (
+                          <span
+                            title="No forecast available: ordered to reach the minimum stock level"
+                            className="ml-2 rounded bg-[#e5e5e9] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#2a3246]"
+                          >
+                            min stock
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-2.5">
                         <span

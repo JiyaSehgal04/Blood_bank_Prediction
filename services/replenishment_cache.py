@@ -1,4 +1,4 @@
-"""Stale-while-revalidate cache for the (slow) replenishment plan.
+"""Stale-while-revalidate cache for slow, shared computations (replenishment plan, forecast status).
 
 Building the plan re-reads the database and re-runs the forecast models for every
 blood component, which takes ~20 seconds. This cache lets every caller share one
@@ -8,13 +8,13 @@ background, and keeps the last good result if a refresh fails.
 
 import threading
 import time
-from typing import Callable, List, Optional
+from typing import Any, Callable, Optional
 
 
 class ReplenishmentCache:
     def __init__(
         self,
-        compute: Callable[[], List[dict]],
+        compute: Callable[[], Any],
         ttl: float = 600.0,
         clock: Callable[[], float] = time.time,
     ) -> None:
@@ -23,11 +23,11 @@ class ReplenishmentCache:
         self._clock = clock
         self._lock = threading.Lock()          # guards the fields below
         self._compute_lock = threading.Lock()  # serialises computations
-        self._data: Optional[List[dict]] = None
+        self._data: Optional[Any] = None
         self._fetched_at = 0.0
         self._refresh_thread: Optional[threading.Thread] = None
 
-    def get(self) -> List[dict]:
+    def get(self) -> Any:
         """Return the plan; computes synchronously only when nothing is cached yet."""
         with self._lock:
             data, fresh = self._data, self._is_fresh()
@@ -55,7 +55,7 @@ class ReplenishmentCache:
     def _is_fresh(self) -> bool:
         return self._data is not None and (self._clock() - self._fetched_at) < self._ttl
 
-    def _refresh_blocking(self) -> List[dict]:
+    def _refresh_blocking(self) -> Any:
         with self._compute_lock:
             with self._lock:
                 if self._data is not None and self._is_fresh():
