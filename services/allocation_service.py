@@ -36,10 +36,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from models.multi_list import MultiListInventory
 from models.blood_unit  import BloodUnit
+from services.compatibility import donor_groups
 
 # ── Compatibility matrix ───────────────────────────────────────────────────────
 # Key: patient blood group → list of donor groups (ordered by preference)
-COMPATIBILITY: dict[str, list[str]] = {
+COMPATIBILITY: dict[str, list[str]] = {  # red-cell table kept for reference; see services/compatibility.py
     "O Neg":  ["O Neg"],
     "O Pos":  ["O Pos",  "O Neg"],
     "A Neg":  ["A Neg",  "O Neg"],
@@ -162,10 +163,9 @@ class AllocationService:
         remaining = request.units_needed
 
         # Try exact group first, then compatible groups (by preference order)
-        donor_groups = COMPATIBILITY.get(request.blood_group,
-                                          [request.blood_group])
+        groups = donor_groups(request.blood_group, request.component)
 
-        for donor_group in donor_groups:
+        for donor_group in groups:
             if remaining <= 0:
                 break
 
@@ -178,6 +178,8 @@ class AllocationService:
                 u for u in grp_list.to_list()
                 if u.component == request.component
                 and u.status   == "available"
+                and not u.is_expired            # never issue past-due blood
+                and not u.screening_positive    # never issue screening-positive units
             ]
 
             if not candidates:

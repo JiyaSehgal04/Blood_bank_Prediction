@@ -256,23 +256,35 @@ class MultiListInventory:
         Ordered by collection_date ASC so FIFO order is preserved.
         Returns number of units loaded.
         """
+        page, start = 1000, 0   # Supabase returns at most 1000 rows per request
+        rows: list = []
         try:
-            result = (
-                self._client()
-                .table(TABLE)
-                .select("*")
-                .eq("status", "available")
-                .order("collection_date", desc=False)
-                .order("collection_time", desc=False)
-                .execute()
-            )
+            while True:
+                batch = (
+                    self._client()
+                    .table(TABLE)
+                    .select("*")
+                    .eq("status", "available")
+                    .order("collection_date", desc=False)
+                    .order("collection_time", desc=False)
+                    .range(start, start + page - 1)
+                    .execute()
+                    .data
+                    or []
+                )
+                rows.extend(batch)
+                if len(batch) < page:
+                    break
+                start += page
         except Exception as e:
             raise RuntimeError(f"Failed to load from DB: {e}")
 
-        for row in result.data:
+        for row in rows:
             if not row.get("blood_group") or not row.get("expiry_date"):
                 continue   # skip incomplete rows
             unit = BloodUnit.from_db_row(row)
+            if unit.is_expired:
+                continue   # past-due units belong to the expiry sweep, never to stock
             self._insert_node(unit)
 
         return self.total_units

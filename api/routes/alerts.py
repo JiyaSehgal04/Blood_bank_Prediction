@@ -13,6 +13,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from services.alert_service  import AlertService
 from services.expiry_service import ExpiryService
 from models.multi_list       import MultiListInventory
+from services.expiry_sweep   import sweep_expired_units
+from db.supabase_client      import get_client
 
 alerts_bp = Blueprint("alerts", __name__, url_prefix="/api")
 
@@ -48,7 +50,10 @@ def resolve_alert(alert_id):
 
 @alerts_bp.route("/alerts/scan", methods=["POST"])
 def run_scan():
-    """Trigger a full stock + expiry scan and generate alerts."""
+    """Trigger a full expiry sweep + stock + expiry scan and generate alerts."""
+    # 1. Move every past-due unit out of stock first, so the alerts below see real stock.
+    sweep_result = sweep_expired_units(get_client())
+
     # Stock alerts
     alert_svc  = AlertService()
     stock_result = alert_svc.run_stock_alerts()
@@ -60,6 +65,7 @@ def run_scan():
     expiry_result = expiry_svc.run_daily_scan()
 
     return jsonify({
-        "stock_scan":  stock_result,
-        "expiry_scan": expiry_result,
+        "expiry_sweep": sweep_result,
+        "stock_scan":   stock_result,
+        "expiry_scan":  expiry_result,
     }), 200

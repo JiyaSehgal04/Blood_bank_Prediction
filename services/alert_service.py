@@ -18,6 +18,7 @@ Alert types & severity:
 """
 
 import sys
+from datetime import date
 from pathlib import Path
 from typing import Optional
 
@@ -35,8 +36,30 @@ CRITICAL_STOCK_THRESHOLD = 0
 
 
 class AlertService:
-    def __init__(self):
-        self._client = get_client()
+    def __init__(self, client=None):
+        self._client = client if client is not None else get_client()
+
+    def _available_units(self) -> list:
+        """Every in-date 'available' unit (pages through Supabase's 1000-row limit)."""
+        today = date.today().isoformat()
+        rows: list = []
+        start = 0
+        while True:
+            batch = (
+                self._client.table(INV_TABLE)
+                .select("blood_group,component,status,hiv,hbsag,hcv,malaria,vdrl,unit_id")
+                .eq("status", "available")
+                .gte("expiry_date", today)
+                .order("unit_id")
+                .range(start, start + 999)
+                .execute()
+                .data
+                or []
+            )
+            rows.extend(batch)
+            if len(batch) < 1000:
+                return rows
+            start += 1000
 
     # ── main scan ─────────────────────────────────────────────────────────────
 
@@ -45,13 +68,7 @@ class AlertService:
         Scan current inventory for stock-level and screening issues.
         Returns { critical_stock, low_stock, screening_pos, total_raised }.
         """
-        available = (
-            self._client.table(INV_TABLE)
-            .select("blood_group,component,status,hiv,hbsag,hcv,malaria,vdrl,unit_id")
-            .eq("status", "available")
-            .execute()
-            .data or []
-        )
+        available = self._available_units()
 
         # stock counts per (blood_group, component)
         stock: dict[tuple, int] = {}

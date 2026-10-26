@@ -10,6 +10,7 @@ from flask import Blueprint, jsonify
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from db.supabase_client import get_client
+from services.expiry_sweep import maybe_sweep
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/api")
 FETCH_PAGE_SIZE = 1000
@@ -61,6 +62,17 @@ def _expiry_buckets(rows: list, today: date) -> list:
     return [{"label": b[0], "units": counts[i]} for i, b in enumerate(EXPIRY_BUCKETS)]
 
 
+def _split_by_expiry(rows: list, today: date) -> tuple:
+    """Split rows into (in_date, past_due). Rows without an expiry date count as in date."""
+    in_date: list = []
+    past_due: list = []
+    cutoff = today.isoformat()
+    for r in rows:
+        expiry = r.get("expiry_date")
+        (past_due if expiry and str(expiry)[:10] < cutoff else in_date).append(r)
+    return in_date, past_due
+
+
 def _group_component_matrix(rows: list) -> dict:
     """{blood_group: {component: units}} for the stock heat-map."""
     matrix: dict = {}
@@ -92,6 +104,7 @@ def _allocation_summary(rows: list) -> dict:
 @dashboard_bp.route("/dashboard/stats", methods=["GET"])
 def dashboard_stats():
     client = get_client()
+    maybe_sweep(client)   # at most once per 6 h: keeps past-due units from lingering as stock
 
     # ── inventory counts ──────────────────────────────────────────────────────
     inv_rows = _fetch_query(
@@ -101,7 +114,10 @@ def dashboard_stats():
     )
 
     total_units    = len(inv_rows)
-    available_rows = [r for r in inv_rows if r["status"] == "available"]
+    all_available  = [r for r in inv_rows if r["status"] == "available"]
+    # Only in-date units are stock; past-due units still marked available are reported
+    # separately (and are cleaned up by the expiry sweep).
+    available_rows, past_due_rows = _split_by_expiry(all_available, date.today())
     total_available= len(available_rows)
     total_volume   = sum(float(r.get("quantity_ml") or 0) for r in available_rows)
 
@@ -169,7 +185,8 @@ def dashboard_stats():
             "expiring_soon":  len(expiring_soon),
             "total_volume_ml": round(total_volume),
             "by_group_component": _group_component_matrix(available_rows),
-            "expiry_buckets": _expiry_buckets(available_rows, date.today()),
+            "expiry_buckets": _expiry_buckets(all_available, date.today()),
+            "past_due":       len(past_due_rows),
         },
         "donors": {
             "total":    total_donors,

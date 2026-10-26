@@ -48,6 +48,15 @@ MIN_ROWS_FOR_RF     = 30   # need 30+ days before Random Forest is useful
 FETCH_PAGE_SIZE     = 1000
 
 
+def complete_daily_calendar(pivot: pd.DataFrame) -> pd.DataFrame:
+    """Reindex to one row per calendar day between the first and last date, filling gaps with 0."""
+    if pivot.empty or "summary_date" not in pivot.columns:
+        return pivot
+    indexed = pivot.set_index("summary_date").sort_index()
+    full = pd.date_range(indexed.index.min(), indexed.index.max(), freq="D", name="summary_date")
+    return indexed.reindex(full, fill_value=0).reset_index()
+
+
 class FeaturePipeline:
     def __init__(self):
         self._client = None
@@ -91,6 +100,7 @@ class FeaturePipeline:
                 self._get_client().table("blood_inventory")
                 .select("blood_group,component")
                 .eq("status", "available")
+                .gte("expiry_date", date.today().isoformat())   # past-due units are not stock
                 .lte("expiry_date", cutoff)
             )
         )
@@ -107,6 +117,7 @@ class FeaturePipeline:
                 self._get_client().table("blood_inventory")
                 .select("blood_group,component")
                 .eq("status", "available")
+                .gte("expiry_date", date.today().isoformat())   # past-due units are not stock
             )
         )
         counts = {}
@@ -149,6 +160,10 @@ class FeaturePipeline:
         for bg in BLOOD_GROUPS_SORTED:
             if bg not in pivot.columns:
                 pivot[bg] = 0
+
+        # Days with no activity are not stored; add them as real zero-demand days so that
+        # lags, rolling windows and the next-day target are calendar-based.
+        pivot = complete_daily_calendar(pivot)
 
         # Melt back to long format for per-group features
         long = pivot.melt(id_vars="summary_date",
